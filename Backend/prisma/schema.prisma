@@ -1,0 +1,107 @@
+// This is your Prisma schema file for Social Media Companion v2
+// Run: npx prisma db push  (to sync with MongoDB Atlas)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  firebaseUID         String   @unique
+  email               String   @unique
+  name                String?  @default("")
+  username            String?  @unique
+  photoURL            String?  @default("")
+  bio                 String?  @default("")
+  niche               String?  @default("")
+  brandVoice          String?  @default("") // professional | casual | educational | entertaining
+  preferredPlatforms  String[]
+  onboardingCompleted Boolean  @default(false)
+  totalAnalyses       Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  projects VideoProject[]
+  drafts   SavedDraft[]
+}
+
+// ─── VideoProject ─────────────────────────────────────────────────────────────
+
+model VideoProject {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String   @db.ObjectId
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title              String   @default("Untitled Project")
+  cloudinaryPublicId String
+  cloudinaryUrl      String
+  thumbnailUrl       String?  @default("")
+  fileSize           Int?     @default(0)
+  duration           Float?   @default(0)
+  format             String?  @default("mp4")
+  // pending | analyzing | completed | failed
+  status             String   @default("pending")
+  errorMessage       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  analysis VideoAnalysis?
+  drafts   SavedDraft[]
+}
+
+// ─── VideoAnalysis ────────────────────────────────────────────────────────────
+// All 7 agent outputs stored as flexible Json fields for maximum schema freedom.
+
+model VideoAnalysis {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  projectId String       @unique @db.ObjectId
+  project   VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String @db.ObjectId
+
+  // Agent outputs (Json allows deeply nested structures)
+  videoAnalysis           Json? // VideoAnalysisAgent output
+  audienceAnalysis        Json? // AudienceAgent output
+  platformRecommendations Json? // PlatformAgent output (array)
+  seoData                 Json? // SEOAgent output
+  generatedContent        Json? // ContentAgent output (youtube/linkedin/x)
+  qualityReview           Json? // QualityAgent output
+  strategy                Json? // StrategyAgent output
+
+  processingTimeMs Int    @default(0)
+  geminiModel      String @default("gemini-2.5-flash")
+  agentErrors      Json? // [{ agent: string, error: string }]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── SavedDraft ───────────────────────────────────────────────────────────────
+
+model SavedDraft {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  analysisId String @db.ObjectId
+  projectId  String @db.ObjectId
+  project    VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  platform        String // youtube | linkedin | x
+  contentType     String // title | description | tweet | thread | post | hashtags
+  label           String?  @default("")
+  originalContent String?  @default("")
+  editedContent   String
+  isFavorited     Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
