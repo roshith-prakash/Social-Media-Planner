@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
 import { useAuth } from "../../context/AuthContext";
 import { updateMe } from "../../api/userApi";
+import { getInstagramLoginUrl, disconnectInstagram } from "../../api/instagramApi";
 import { SparklesIcon, PencilIcon, CheckIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
 const VOICES = ["professional", "casual", "educational", "entertaining", "inspirational"];
-const PLATFORMS = ["youtube", "linkedin", "x"];
+const PLATFORMS = ["youtube", "instagram"];
 
 export default function ProfilePage() {
   const { dbUser, refreshUser } = useUser();
@@ -153,6 +155,75 @@ export default function ProfilePage() {
           </div>
         ))}
       </div>
+
+      {/* Connected Social Accounts */}
+      <div className="glass-card" style={{ padding: 24, marginTop: 20 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Connected Social Accounts</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* YouTube */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>YouTube</span>
+              {dbUser.youtubeChannelName ? (
+                <span className="badge badge-brand">{dbUser.youtubeChannelName}</span>
+              ) : (
+                <span className="badge badge-muted">Not Connected</span>
+              )}
+            </div>
+            <Link to="/app/connect-youtube" className="btn btn-secondary btn-sm">
+              {dbUser.youtubeChannelName ? "Manage" : "Connect"}
+            </Link>
+          </div>
+
+          {/* Instagram */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>Instagram</span>
+              {dbUser.instagramUsername ? (
+                <span className="badge" style={{ background: "linear-gradient(135deg, rgba(225,48,108,0.2), rgba(131,58,180,0.2))", color: "#E1306C", border: "1px solid rgba(225,48,108,0.3)" }}>
+                  @{dbUser.instagramUsername}
+                </span>
+              ) : (
+                <span className="badge badge-muted">Not Connected</span>
+              )}
+            </div>
+            {dbUser.instagramUsername ? (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={async () => {
+                  try {
+                    await disconnectInstagram();
+                    toast.success("Instagram disconnected");
+                    refreshUser?.();
+                  } catch {
+                    toast.error("Failed to disconnect Instagram");
+                  }
+                }}
+              >
+                Disconnect
+              </button>
+            ) : (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={async () => {
+                  try {
+                    const identifier = currentUser?.uid || dbUser?.firebaseUID || dbUser?.id;
+                    const res = await getInstagramLoginUrl(identifier);
+                    if (res.data?.url) {
+                      window.location.href = res.data.url;
+                    }
+                  } catch (err) {
+                    toast.error("Failed to initiate Instagram login: " + (err.response?.data?.details || err.message));
+                  }
+                }}
+              >
+                Connect
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+

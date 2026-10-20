@@ -39,10 +39,10 @@ VIDEO ISSUES: ${(va.videoQualityIssues || []).map(i => i.issue).join(", ") || "N
 Return a JSON object with EXACTLY this structure:
 
 {
-  "bestPlatform": "youtube | linkedin | x",
+  "bestPlatform": "youtube | instagram",
   "bestPlatformReasoning": "Why this is the #1 platform for this specific video in 2-3 sentences",
-  "publishingOrder": ["youtube", "linkedin", "x"],
-  "publishingOrderReasoning": "Why to publish in this order (timing, cross-promotion, algorithm behavior)",
+  "publishingOrder": ["youtube", "instagram"],
+  "publishingOrderReasoning": "Why to publish in this order (e.g. publish long-form on YouTube first, cut Reel for Instagram with hook directing to full video)",
   "postingSchedule": [
     {
       "platform": "youtube",
@@ -51,16 +51,10 @@ Return a JSON object with EXACTLY this structure:
       "reasoning": "YouTube algorithm favors weekday afternoon uploads for this content type"
     },
     {
-      "platform": "linkedin",
-      "suggestedDay": "Wednesday",
-      "suggestedTime": "8:00 AM - 10:00 AM EST",
-      "reasoning": "LinkedIn professionals check feeds during morning commute"
-    },
-    {
-      "platform": "x",
-      "suggestedDay": "Same day as YouTube",
-      "suggestedTime": "12:00 PM - 2:00 PM EST",
-      "reasoning": "Drive cross-platform traffic by posting X tweet shortly after YouTube upload"
+      "platform": "instagram",
+      "suggestedDay": "Wednesday or Friday",
+      "suggestedTime": "11:00 AM - 1:00 PM EST",
+      "reasoning": "Instagram Reels see peak lunch break and evening engagement surges"
     }
   ],
   "contentImprovements": [
@@ -68,7 +62,7 @@ Return a JSON object with EXACTLY this structure:
     "Before publishing: specific video improvement 2",
     "Optional: improvement that would increase reach by X%"
   ],
-  "crossPromotionStrategy": "How to use each platform to drive traffic to the others",
+  "crossPromotionStrategy": "How to funnel Instagram Reels viewers to the full YouTube video and vice-versa",
   "scorecard": {
     "platformFit": 88,
     "seoScore": ${seo.seoScore || 75},
@@ -92,8 +86,7 @@ Return a JSON object with EXACTLY this structure:
   ],
   "estimatedReach": {
     "youtube": "e.g. 500-2,000 views in first week (search-driven)",
-    "linkedin": "e.g. 300-800 impressions (network-driven)",
-    "x": "e.g. 50-200 impressions (hashtag-driven)"
+    "instagram": "e.g. 1,000-5,000 Reels plays (Explore & FYP distribution)"
   }
 }
 

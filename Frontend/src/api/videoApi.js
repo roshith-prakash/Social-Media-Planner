@@ -6,3 +6,5 @@ export const getMyProjects = (page = 1, limit = 12) =>
   api.get(`/videos?page=${page}&limit=${limit}`);
 export const getProjectById = (id) => api.get(`/videos/${id}`);
 export const deleteProject = (id) => api.delete(`/videos/${id}`);
+export const getSignedUrl = (publicId) => api.get(`/videos/signed/${encodeURIComponent(publicId)}`);
+

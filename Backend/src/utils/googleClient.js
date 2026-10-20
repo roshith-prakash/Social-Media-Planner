@@ -3,7 +3,7 @@ import { google } from "googleapis";
 export function getOAuthClient() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI; // e.g., https://your-backend.com/api/youtube/callback
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || "http://localhost:4000/api/v1/youtube/callback";
 
     if (!clientId || !clientSecret || !redirectUri) {
         throw new Error(

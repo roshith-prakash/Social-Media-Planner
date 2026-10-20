@@ -17,7 +17,7 @@ class SEOAgent extends BaseAgent {
     const aa = context.audienceAnalysis || {};
 
     return `
-You are a senior SEO specialist with expertise in video SEO, content discovery, and search algorithms across YouTube, LinkedIn, and X.
+You are a senior SEO specialist with expertise in video SEO, content discovery, and search algorithms across YouTube and Instagram.
 
 Analyze the content below and generate a comprehensive SEO strategy.
 
@@ -55,7 +55,7 @@ Return a JSON object with EXACTLY this structure:
     "Specific suggestion 3"
   ],
   "opportunities": [
-    "Untapped SEO opportunity 1 e.g. Target 'X for beginners 2025'",
+    "Untapped SEO opportunity 1 e.g. Target beginner query for 2025/2026",
     "Opportunity 2"
   ],
   "avoidKeywords": ["oversaturated or irrelevant keyword to avoid"],
@@ -64,13 +64,10 @@ Return a JSON object with EXACTLY this structure:
     "competitionLevel": "e.g. High | Medium | Low",
     "bestTagStrategy": "How to structure tags for this video"
   },
-  "linkedinSpecific": {
-    "discoveryMethod": "How LinkedIn users will find this content",
-    "algorithmTips": ["LinkedIn-specific tip 1", "tip 2"]
-  },
-  "xSpecific": {
-    "trendingPotential": "e.g. Medium — topic aligns with weekly tech discussions",
-    "hashtagStrategy": "How to use hashtags on X for this content"
+  "instagramSpecific": {
+    "exploreAlgorithmTips": ["Caption keyword placement", "Audio keyword association"],
+    "inAppSearchKeywords": ["Keywords users type into Instagram search"],
+    "hashtagStrategy": "Optimal 3-5 hyper-relevant niche hashtags for Explore distribution"
   }
 }
 

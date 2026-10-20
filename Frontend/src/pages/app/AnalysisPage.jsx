@@ -1,16 +1,20 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { getAnalysisById } from "../../api/analysisApi";
 import { regenerateAgent } from "../../api/analysisApi";
 import { createDraft } from "../../api/draftApi";
+import { schedulePost, publishNow } from "../../api/scheduleApi";
 import {
   SparklesIcon, ClipboardDocumentIcon, CheckIcon,
   ArrowPathIcon, BookmarkIcon, ChevronDownIcon,
+  ClockIcon, ChartBarIcon, XMarkIcon, CalendarDaysIcon,
+  BoltIcon, PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
-const PLATFORM_COLORS = { youtube: "#ff4444", linkedin: "#3b9eff", x: "#e7e9ea" };
-const PLATFORM_LABELS = { youtube: "YouTube", linkedin: "LinkedIn", x: "X (Twitter)" };
+
+const PLATFORM_COLORS = { youtube: "#ff4444", instagram: "#E1306C" };
+const PLATFORM_LABELS = { youtube: "YouTube", instagram: "Instagram" };
 
 function ScoreRing({ score, label, color = "var(--brand-500)" }) {
   const radius = 28;
@@ -37,7 +41,7 @@ function ScoreRing({ score, label, color = "var(--brand-500)" }) {
   );
 }
 
-function CopyBtn({ text, platform, contentType, analysisId, projectId }) {
+function CopyBtn({ text, platform, contentType, analysisId, projectId, onSchedule, onPublishNow }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(text);
@@ -51,7 +55,7 @@ function CopyBtn({ text, platform, contentType, analysisId, projectId }) {
     } catch { toast.error("Failed to save"); }
   };
   return (
-    <div style={{ display: "flex", gap: 6 }}>
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
       <button className={`copy-btn ${copied ? "copied" : ""}`} onClick={copy}>
         {copied ? <CheckIcon style={{ width: 13, height: 13 }} /> : <ClipboardDocumentIcon style={{ width: 13, height: 13 }} />}
         {copied ? "Copied!" : "Copy"}
@@ -62,22 +66,51 @@ function CopyBtn({ text, platform, contentType, analysisId, projectId }) {
           Save
         </button>
       )}
+      {onPublishNow && (
+        <button
+          className="copy-btn"
+          onClick={() => onPublishNow(text, platform)}
+          style={{
+            color: "#ec4899",
+            borderColor: "rgba(236, 72, 153, 0.35)",
+            background: "rgba(236, 72, 153, 0.08)",
+          }}
+          title="Publish immediately to this platform"
+        >
+          <BoltIcon style={{ width: 13, height: 13 }} />
+          Post Now
+        </button>
+      )}
+      {onSchedule && (
+        <button className="copy-btn" onClick={() => onSchedule(text, platform)}>
+          <ClockIcon style={{ width: 13, height: 13 }} />
+          Schedule
+        </button>
+      )}
     </div>
   );
 }
 
-function ContentBlock({ label, content, platform, contentType, analysisId, projectId }) {
+function ContentBlock({ label, content, platform, contentType, analysisId, projectId, onSchedule, onPublishNow }) {
   const [expanded, setExpanded] = useState(true);
   if (!content) return null;
   const text = Array.isArray(content) ? content.join("\n\n") : String(content);
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
         <button style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600 }} onClick={() => setExpanded(e => !e)}>
           <ChevronDownIcon style={{ width: 14, height: 14, transform: expanded ? "rotate(0)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
           {label}
         </button>
-        <CopyBtn text={text} platform={platform} contentType={contentType} analysisId={analysisId} projectId={projectId} />
+        <CopyBtn
+          text={text}
+          platform={platform}
+          contentType={contentType}
+          analysisId={analysisId}
+          projectId={projectId}
+          onSchedule={onSchedule}
+          onPublishNow={onPublishNow}
+        />
       </div>
       {expanded && (
         <div style={{
@@ -92,6 +125,7 @@ function ContentBlock({ label, content, platform, contentType, analysisId, proje
   );
 }
 
+
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "video", label: "Video Insights" },
@@ -104,11 +138,22 @@ const TABS = [
 
 export default function AnalysisPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [activePlatform, setActivePlatform] = useState("youtube");
   const [regenerating, setRegenerating] = useState(null);
+
+  // Publish / Schedule modal state
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState("now"); // "now" | "schedule"
+  const [scheduleForm, setScheduleForm] = useState({
+    platform: "youtube",
+    scheduledAt: "",
+    content: "",
+  });
+  const [submittingAction, setSubmittingAction] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -129,13 +174,66 @@ export default function AnalysisPage() {
     try {
       const res = await regenerateAgent(id, agent);
       setAnalysis(prev => ({ ...prev, [res.data.data.field]: res.data.data.data }));
-      toast.success(`${agent} regenerated!`);
+      toast.success(`${agent.toUpperCase()} agent regenerated!`);
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || "Regeneration failed");
     } finally {
       setRegenerating(null);
     }
   };
+
+  const handleOpenPublishNow = (text = "", platform = "youtube") => {
+    setScheduleMode("now");
+    setScheduleForm({
+      platform: platform || "youtube",
+      scheduledAt: "",
+      content: typeof text === "string" ? text : Array.isArray(text) ? text.join("\n\n") : "",
+    });
+    setShowScheduleModal(true);
+  };
+
+  const handleOpenSchedule = (text = "", platform = "youtube") => {
+    setScheduleMode("schedule");
+    setScheduleForm({
+      platform: platform || "youtube",
+      scheduledAt: "",
+      content: typeof text === "string" ? text : Array.isArray(text) ? text.join("\n\n") : "",
+    });
+    setShowScheduleModal(true);
+  };
+
+  const handleActionSubmit = async (e) => {
+    e.preventDefault();
+    if (scheduleMode === "schedule" && !scheduleForm.scheduledAt) {
+      return toast.error("Please pick a scheduled date and time");
+    }
+
+    setSubmittingAction(true);
+    try {
+      if (scheduleMode === "now") {
+        const res = await publishNow({
+          projectId: analysis.projectId,
+          platform: scheduleForm.platform,
+          content: scheduleForm.content,
+        });
+        toast.success(res.data?.message || `Successfully published to ${scheduleForm.platform.toUpperCase()}!`);
+      } else {
+        await schedulePost({
+          projectId: analysis.projectId,
+          platform: scheduleForm.platform,
+          scheduledAt: scheduleForm.scheduledAt,
+          content: scheduleForm.content,
+        });
+        toast.success("Post scheduled successfully! View it in Content Calendar.");
+      }
+      setShowScheduleModal(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.response?.data?.error || err.message || "Publishing failed");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -190,13 +288,52 @@ export default function AnalysisPage() {
             {topPlatform && <span className={`badge platform-${topPlatform.platform}`}>Best: {PLATFORM_LABELS[topPlatform.platform]} ({topPlatform.score}/100)</span>}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => handleRegenerate("content")} disabled={regenerating === "content"}>
-            <ArrowPathIcon style={{ width: 14, height: 14, ...(regenerating === "content" ? { animation: "spin-slow 1s linear infinite" } : {}) }} />
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <button
+            className="btn btn-sm"
+            onClick={() => handleOpenPublishNow(gc.instagram?.caption || gc.youtube?.description || "", topPlatform?.platform || "youtube")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
+              color: "#fff",
+              border: "none",
+              boxShadow: "0 4px 14px rgba(236, 72, 153, 0.35)",
+              fontWeight: 600,
+            }}
+          >
+            <BoltIcon style={{ width: 14, height: 14 }} />
+            Post Now
+          </button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => handleOpenSchedule(gc.instagram?.caption || gc.youtube?.description || "", topPlatform?.platform || "youtube")}
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <ClockIcon style={{ width: 14, height: 14 }} />
+            Schedule Post
+          </button>
+          <Link
+            to={`/app/analytics/${analysis.projectId}`}
+            className="btn btn-secondary btn-sm"
+            style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none" }}
+          >
+            <ChartBarIcon style={{ width: 14, height: 14 }} />
+            Analytics
+          </Link>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => handleRegenerate("content")}
+            disabled={regenerating === "content"}
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <ArrowPathIcon style={{ width: 14, height: 14, ...(regenerating === "content" ? { animation: "spin 1s linear infinite" } : {}) }} />
             {regenerating === "content" ? "Regenerating..." : "Regenerate Content"}
           </button>
         </div>
       </div>
+
 
       {/* ── Scorecard Strip ─────────────────────────────────────────────── */}
       {scorecard && Object.keys(scorecard).length > 0 && (
@@ -237,7 +374,7 @@ export default function AnalysisPage() {
             <div className="glass-card animate-fadeInUp" style={{ padding: 24 }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Best Platform</h3>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 28 }}>{topPlatform.platform === "youtube" ? "▶" : topPlatform.platform === "linkedin" ? "in" : "𝕏"}</div>
+                <div style={{ fontSize: 28 }}>{topPlatform.platform === "youtube" ? "▶" : "📸"}</div>
                 <div>
                   <p style={{ fontWeight: 700, fontSize: 17 }}>{PLATFORM_LABELS[topPlatform.platform]}</p>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -423,7 +560,7 @@ export default function AnalysisPage() {
                     width: 52, height: 52, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
                     background: `${PLATFORM_COLORS[p.platform]}15`, border: `1px solid ${PLATFORM_COLORS[p.platform]}30`, fontSize: 22,
                   }}>
-                    {p.platform === "youtube" ? "▶" : p.platform === "linkedin" ? "in" : "𝕏"}
+                    {p.platform === "youtube" ? "▶" : "📸"}
                   </div>
                   <div>
                     <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{PLATFORM_LABELS[p.platform]}</h3>
@@ -525,7 +662,7 @@ export default function AnalysisPage() {
         <div>
           {/* Platform selector */}
           <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-            {["youtube", "linkedin", "x"].map(p => (
+            {["youtube", "instagram"].map(p => (
               <button
                 key={p}
                 id={`platform-tab-${p}`}
@@ -569,7 +706,16 @@ export default function AnalysisPage() {
               </div>
 
               <div className="glass-card animate-fadeInUp" style={{ padding: 24, marginBottom: 16 }}>
-                <ContentBlock label="Description" content={gc.youtube.description} platform="youtube" contentType="description" analysisId={id} projectId={projectId} />
+                <ContentBlock
+                  label="Description"
+                  content={gc.youtube.description}
+                  platform="youtube"
+                  contentType="description"
+                  analysisId={id}
+                  projectId={projectId}
+                  onSchedule={handleOpenSchedule}
+                  onPublishNow={handleOpenPublishNow}
+                />
                 {gc.youtube.chapters?.length > 0 && (
                   <div style={{ marginTop: 16 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Chapters</p>
@@ -608,51 +754,166 @@ export default function AnalysisPage() {
             </div>
           )}
 
-          {/* LinkedIn Content */}
-          {activePlatform === "linkedin" && gc.linkedin && (
+          {/* Instagram Content */}
+          {activePlatform === "instagram" && gc.instagram && (
             <div className="stagger">
-              <div className="glass-card animate-fadeInUp" style={{ padding: 24, marginBottom: 16 }}>
-                <ContentBlock label="Hook" content={gc.linkedin.hook} platform="linkedin" contentType="hook" analysisId={id} projectId={projectId} />
-                <ContentBlock label="Full Post" content={gc.linkedin.post} platform="linkedin" contentType="post" analysisId={id} projectId={projectId} />
-                <ContentBlock label="CTA" content={gc.linkedin.cta} platform="linkedin" contentType="cta" analysisId={id} projectId={projectId} />
-              </div>
-              {gc.linkedin.variations?.length > 0 && (
-                <div className="glass-card animate-fadeInUp" style={{ padding: 24 }}>
-                  <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Post Variations</h3>
-                  {gc.linkedin.variations.map((v, i) => (
-                    <div key={i} style={{ marginBottom: 20 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                        <span className="badge badge-muted" style={{ textTransform: "capitalize" }}>{v.tone}</span>
-                        <CopyBtn text={v.content} platform="linkedin" contentType="post" analysisId={id} projectId={projectId} />
-                      </div>
-                      <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{v.content}</p>
+              {/* Hooks Section */}
+              {gc.instagram.hook && (
+                <div className="glass-card animate-fadeInUp" style={{ padding: 24, marginBottom: 16, borderLeft: "4px solid #E1306C" }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>⚡ First 3-Second Hooks</span>
+                    <span className="badge badge-brand" style={{ background: "rgba(225,48,108,0.15)", color: "#E1306C", border: "1px solid rgba(225,48,108,0.3)" }}>Reels Retention</span>
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                    <div style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-accent)", marginBottom: 6 }}>👀 Visual / On-Screen Text</p>
+                      <p style={{ fontSize: 14, color: "var(--text-primary)" }}>{gc.instagram.hook.visualHook}</p>
                     </div>
-                  ))}
+                    <div style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "#E1306C", marginBottom: 6 }}>🎙️ Spoken Verbal Hook</p>
+                      <p style={{ fontSize: 14, color: "var(--text-primary)" }}>"{gc.instagram.hook.verbalHook}"</p>
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* X Content */}
-          {activePlatform === "x" && gc.x && (
-            <div className="stagger">
+              {/* Primary Caption */}
               <div className="glass-card animate-fadeInUp" style={{ padding: 24, marginBottom: 16 }}>
-                <ContentBlock label="Tweet" content={gc.x.tweet} platform="x" contentType="tweet" analysisId={id} projectId={projectId} />
-                {gc.x.thread?.length > 0 && (
-                  <div style={{ marginTop: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600 }}>Thread ({gc.x.thread.length} tweets)</p>
-                      <CopyBtn text={gc.x.thread.join("\n\n")} platform="x" contentType="thread" analysisId={id} projectId={projectId} />
-                    </div>
-                    {gc.x.thread.map((tweet, i) => (
-                      <div key={i} style={{ display: "flex", gap: 12, marginBottom: 12, paddingLeft: 4, borderLeft: "2px solid var(--border-default)" }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 20 }}>{i + 1}/</span>
-                        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>{tweet}</p>
-                      </div>
-                    ))}
+                <ContentBlock
+                  label="Primary Reels / Post Caption"
+                  content={gc.instagram.caption}
+                  platform="instagram"
+                  contentType="caption"
+                  analysisId={id}
+                  projectId={projectId}
+                  onSchedule={handleOpenSchedule}
+                  onPublishNow={handleOpenPublishNow}
+                />
+                {gc.instagram.cta && (
+                  <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "rgba(225,48,108,0.08)", border: "1px solid rgba(225,48,108,0.2)" }}>
+                    <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                      💬 <strong style={{ color: "#E1306C" }}>Suggested Call-to-Action:</strong> {gc.instagram.cta}
+                    </p>
                   </div>
                 )}
               </div>
+
+              {/* Reels Script Breakdown */}
+              {gc.instagram.reelsScript?.length > 0 && (
+                <div className="glass-card animate-fadeInUp" style={{ padding: 24, marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 700 }}>Vertical Reel Script (Timed Breakdown)</h3>
+                    <CopyBtn
+                      text={gc.instagram.reelsScript.map(s => `[${s.timestamp}] ${s.section}\nScript: ${s.script}\nOn-Screen: ${s.onScreenText}`).join("\n\n")}
+                      platform="instagram"
+                      contentType="reels_script"
+                      analysisId={id}
+                      projectId={projectId}
+                      onSchedule={handleOpenSchedule}
+                      onPublishNow={handleOpenPublishNow}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {gc.instagram.reelsScript.map((step, idx) => (
+                      <div key={idx} style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <span className="badge badge-brand" style={{ fontSize: 12 }}>{step.timestamp}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>{step.section}</span>
+                        </div>
+                        <p style={{ fontSize: 14, color: "var(--text-primary)", marginBottom: 8, lineHeight: 1.6 }}>{step.script}</p>
+                        {step.onScreenText && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>TEXT OVERLAY:</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "#E1306C" }}>{step.onScreenText}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Hashtags & Audio Recommendation */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                {/* Hashtags */}
+                <div className="glass-card animate-fadeInUp" style={{ padding: 24 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 700 }}>Instagram Hashtags</h3>
+                    {gc.instagram.hashtags && (
+                      <CopyBtn
+                        text={Object.values(gc.instagram.hashtags).flat().join(" ")}
+                        platform="instagram"
+                        contentType="hashtags"
+                        analysisId={id}
+                        projectId={projectId}
+                        onSchedule={handleOpenSchedule}
+                        onPublishNow={handleOpenPublishNow}
+                      />
+                    )}
+                  </div>
+                  {gc.instagram.hashtags && Object.entries(gc.instagram.hashtags).map(([cat, tags]) => tags?.length > 0 && (
+                    <div key={cat} style={{ marginBottom: 12 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 6, textTransform: "capitalize" }}>{cat} ({tags.length})</p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {tags.map((t, i) => <span key={i} className="badge" style={{ background: "rgba(225,48,108,0.12)", color: "#E1306C", border: "1px solid rgba(225,48,108,0.25)" }}>{t}</span>)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Audio Recommendation & Carousel Concept */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {gc.instagram.audioRecommendation && (
+                    <div className="glass-card animate-fadeInUp" style={{ padding: 24 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>🎵 Audio & Beat Direction</h3>
+                      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>
+                        <strong>Style:</strong> {gc.instagram.audioRecommendation.soundType}
+                      </p>
+                      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>
+                        <strong>Pacing:</strong> {gc.instagram.audioRecommendation.pacing}
+                      </p>
+                    </div>
+                  )}
+
+                  {gc.instagram.carouselConcept && (
+                    <div className="glass-card animate-fadeInUp" style={{ padding: 24, flex: 1 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>📑 Carousel Post Idea</h3>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-accent)", marginBottom: 8 }}>{gc.instagram.carouselConcept.title}</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {gc.instagram.carouselConcept.slides?.map((s, idx) => (
+                          <p key={idx} style={{ fontSize: 12, color: "var(--text-secondary)" }}>• {s}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Caption Variations */}
+              {gc.instagram.variations?.length > 0 && (
+                <div className="glass-card animate-fadeInUp" style={{ padding: 24 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Alternative Caption Tones</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {gc.instagram.variations.map((v, i) => (
+                      <div key={i} style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+                          <span className="badge badge-muted" style={{ textTransform: "capitalize" }}>{v.tone.replace("_", " ")}</span>
+                          <CopyBtn
+                            text={v.caption}
+                            platform="instagram"
+                            contentType="caption"
+                            analysisId={id}
+                            projectId={projectId}
+                            onSchedule={handleOpenSchedule}
+                            onPublishNow={handleOpenPublishNow}
+                          />
+                        </div>
+                        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{v.caption}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -718,6 +979,239 @@ export default function AnalysisPage() {
           )}
         </div>
       )}
+
+      {/* ── Schedule Modal ──────────────────────────────────────────────── */}
+      {showScheduleModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+            padding: 20,
+          }}
+          onClick={() => setShowScheduleModal(false)}
+        >
+          <div
+            className="glass-card animate-scaleIn"
+            style={{
+              maxWidth: 540,
+              width: "100%",
+              padding: 28,
+              background: "rgba(22, 22, 45, 0.95)",
+              border: "1px solid var(--border-default)",
+              borderRadius: 16,
+              boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {scheduleMode === "now" ? (
+                  <BoltIcon style={{ width: 22, height: 22, color: "#ec4899" }} />
+                ) : (
+                  <ClockIcon style={{ width: 22, height: 22, color: "var(--text-accent)" }} />
+                )}
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+                  {scheduleMode === "now" ? "Publish Post Now" : "Schedule Publication"}
+                </h3>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowScheduleModal(false)}>
+                <XMarkIcon style={{ width: 18, height: 18 }} />
+              </button>
+            </div>
+
+            {/* Mode Switcher Toggle */}
+            <div style={{
+              display: "flex",
+              background: "rgba(255, 255, 255, 0.05)",
+              padding: 4,
+              borderRadius: 10,
+              marginBottom: 18,
+              border: "1px solid var(--border-subtle)",
+            }}>
+              <button
+                type="button"
+                onClick={() => setScheduleMode("now")}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  border: "none",
+                  transition: "all 0.2s ease",
+                  background: scheduleMode === "now" ? "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)" : "transparent",
+                  color: scheduleMode === "now" ? "#fff" : "var(--text-secondary)",
+                  boxShadow: scheduleMode === "now" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
+                }}
+              >
+                <BoltIcon style={{ width: 14, height: 14 }} />
+                Post Now
+              </button>
+              <button
+                type="button"
+                onClick={() => setScheduleMode("schedule")}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  border: "none",
+                  transition: "all 0.2s ease",
+                  background: scheduleMode === "schedule" ? "var(--brand-500)" : "transparent",
+                  color: scheduleMode === "schedule" ? "#fff" : "var(--text-secondary)",
+                }}
+              >
+                <ClockIcon style={{ width: 14, height: 14 }} />
+                Schedule for Later
+              </button>
+            </div>
+
+            <form onSubmit={handleActionSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Target Platform Selector */}
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>
+                  Target Platform
+                </label>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {["youtube", "instagram"].map((p) => (
+                    <button
+                      type="button"
+                      key={p}
+                      onClick={() => setScheduleForm({ ...scheduleForm, platform: p })}
+                      style={{
+                        flex: 1,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        background: scheduleForm.platform === p ? `${PLATFORM_COLORS[p]}25` : "rgba(255,255,255,0.05)",
+                        border: `1px solid ${scheduleForm.platform === p ? PLATFORM_COLORS[p] : "rgba(255,255,255,0.1)"}`,
+                        color: scheduleForm.platform === p ? PLATFORM_COLORS[p] : "var(--text-secondary)",
+                      }}
+                    >
+                      {PLATFORM_LABELS[p]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Informational callout if Post Now */}
+              {scheduleMode === "now" ? (
+                <div style={{
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  background: "rgba(236, 72, 153, 0.08)",
+                  border: "1px solid rgba(236, 72, 153, 0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}>
+                  <BoltIcon style={{ width: 18, height: 18, color: "#ec4899", flexShrink: 0 }} />
+                  <p style={{ fontSize: 12, color: "var(--text-primary)", margin: 0, lineHeight: 1.5 }}>
+                    Instant publication: Your video and caption will be published directly to your connected <strong>{PLATFORM_LABELS[scheduleForm.platform]}</strong> account right now.
+                  </p>
+                </div>
+              ) : (
+                /* Scheduled Date & Time if Schedule Mode */
+                <div>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>
+                    Scheduled Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    className="input"
+                    value={scheduleForm.scheduledAt}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, scheduledAt: e.target.value })}
+                    required={scheduleMode === "schedule"}
+                  />
+                </div>
+              )}
+
+              {/* Content textarea */}
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>
+                  Post Content / Caption
+                </label>
+                <textarea
+                  className="input"
+                  rows={5}
+                  placeholder="Draft content to publish..."
+                  value={scheduleForm.content}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, content: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowScheduleModal(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-sm"
+                  disabled={submittingAction}
+                  style={
+                    scheduleMode === "now"
+                      ? {
+                          background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
+                          color: "#fff",
+                          border: "none",
+                          fontWeight: 600,
+                          boxShadow: "0 4px 14px rgba(236, 72, 153, 0.35)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }
+                      : {
+                          background: "var(--brand-500)",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }
+                  }
+                >
+                  {submittingAction ? (
+                    <>
+                      <ArrowPathIcon style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+                      {scheduleMode === "now" ? `Publishing to ${PLATFORM_LABELS[scheduleForm.platform]}...` : "Scheduling..."}
+                    </>
+                  ) : scheduleMode === "now" ? (
+                    <>
+                      <BoltIcon style={{ width: 14, height: 14 }} />
+                      Post Now to {PLATFORM_LABELS[scheduleForm.platform]}
+                    </>
+                  ) : (
+                    <>
+                      <ClockIcon style={{ width: 14, height: 14 }} />
+                      Confirm Schedule
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -1,8 +1,10 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
-import { getUploadSignature, createVideoProject } from "../../api/videoApi";
+import { getUploadSignature, createVideoProject, getProjectById } from "../../api/videoApi";
 import { analyzeVideo } from "../../api/analysisApi";
+import { subscribeToAnalysis } from "../../api/sseApi";
+import AgentProgressTracker from "../../components/AgentProgressTracker";
 import {
   CloudArrowUpIcon,
   SparklesIcon,
@@ -15,13 +17,6 @@ import toast from "react-hot-toast";
 const ACCEPTED_TYPES = ["video/mp4", "video/mov", "video/avi", "video/webm", "video/quicktime", "video/x-msvideo"];
 const MAX_SIZE_MB = 500;
 
-const UPLOAD_STAGES = [
-  { key: "uploading", label: "Uploading to Cloud", pct: 30 },
-  { key: "analyzing", label: "Running AI Agents", pct: 60 },
-  { key: "saving", label: "Saving Results", pct: 90 },
-  { key: "done", label: "Complete!", pct: 100 },
-];
-
 export default function UploadPage() {
   const navigate = useNavigate();
   const { dbUser } = useUser();
@@ -30,9 +25,11 @@ export default function UploadPage() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [title, setTitle] = useState("");
-  const [stage, setStage] = useState(null); // null | one of UPLOAD_STAGES keys
+  const [stage, setStage] = useState(null); // null | "uploading" | "analyzing" | "done"
   const [uploadPct, setUploadPct] = useState(0);
   const [error, setError] = useState(null);
+  const [agentStatuses, setAgentStatuses] = useState({});
+  const [videoPrepStatus, setVideoPrepStatus] = useState("ingesting");
 
   const validateFile = (f) => {
     if (!ACCEPTED_TYPES.includes(f.type)) {
@@ -70,14 +67,14 @@ export default function UploadPage() {
     formData.append("timestamp", sigData.timestamp);
     formData.append("folder", sigData.folder);
 
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dvwdsxirc";
     const url = `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`;
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 25); // 0-25%
+          const pct = Math.round((e.loaded / e.total) * 95);
           setUploadPct(pct);
         }
       });
@@ -94,18 +91,124 @@ export default function UploadPage() {
     });
   };
 
+  const pollForCompletion = async (projectId) => {
+    let attempts = 0;
+    const maxAttempts = 150; // ~5 minutes at 2s intervals
+
+    return new Promise((resolve, reject) => {
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await getProjectById(projectId);
+          const prj = res.data?.data?.project;
+
+          if (prj?.status === "completed" && prj?.analysis?.id) {
+            clearInterval(interval);
+            setStage("done");
+            return resolve(prj.analysis.id);
+          }
+
+          if (prj?.status === "failed") {
+            clearInterval(interval);
+            return reject(new Error(prj.errorMessage || "Analysis pipeline failed"));
+          }
+
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            reject(new Error("Analysis is taking longer than expected. You can check its progress on the Projects page."));
+          }
+        } catch (pollErr) {
+          console.warn("Polling error:", pollErr);
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            reject(pollErr);
+          }
+        }
+      }, 2000);
+    });
+  };
+
+  const startSSETracking = (projectId) => {
+    return subscribeToAnalysis(
+      projectId,
+      (eventType, data) => {
+        if (eventType === "agent_start") {
+          setAgentStatuses((prev) => ({
+            ...prev,
+            [data.agent]: { status: "running" },
+          }));
+        } else if (eventType === "agent_done") {
+          setAgentStatuses((prev) => ({
+            ...prev,
+            [data.agent]: { status: data.status, elapsed: data.elapsed },
+          }));
+        } else if (eventType === "video_ready") {
+          setVideoPrepStatus("ready");
+        } else if (eventType === "cache_hit") {
+          toast.success("⚡ Cache hit! Returning instant analysis.");
+        }
+      },
+      () => {
+        setStage("done");
+      }
+    );
+  };
+
+  // If redirected with ?projectId=..., auto-resume or trigger analysis
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const existingProjectId = params.get("projectId");
+    if (!existingProjectId) return;
+
+    let isMounted = true;
+    setStage("analyzing");
+
+    const unsubscribe = startSSETracking(existingProjectId);
+
+    const runExisting = async () => {
+      try {
+        await analyzeVideo(existingProjectId).catch(() => {});
+        const analysisId = await pollForCompletion(existingProjectId);
+        if (isMounted) {
+          unsubscribe?.();
+          setStage("done");
+          setTimeout(() => {
+            navigate(`/app/analysis/${analysisId}`);
+          }, 1000);
+        }
+      } catch (err) {
+        if (isMounted) {
+          unsubscribe?.();
+          setStage(null);
+          setError(err.message || "Analysis failed");
+          toast.error(err.message || "Analysis failed");
+        }
+      }
+    };
+
+    runExisting();
+    return () => {
+      isMounted = false;
+      unsubscribe?.();
+    };
+  }, []);
+
   const handleAnalyze = async () => {
     if (!file) return toast.error("Please select a video first");
     setError(null);
+    setAgentStatuses({});
+    setVideoPrepStatus("ingesting");
+
+    let unsubscribeSSE = null;
 
     try {
       // Stage 1: Upload
       setStage("uploading");
-      setUploadPct(5);
+      setUploadPct(10);
       const sigRes = await getUploadSignature();
       const sigData = sigRes.data.data;
       const cloudResult = await uploadToCloudinary(file, sigData);
-      setUploadPct(30);
+      setUploadPct(100);
 
       // Create project record
       const projectRes = await createVideoProject({
@@ -119,39 +222,38 @@ export default function UploadPage() {
       });
       const projectId = projectRes.data.data.project.id;
 
-      // Stage 2: AI Analysis
+      // Stage 2: AI Analysis with SSE real-time streaming
       setStage("analyzing");
-      setUploadPct(40);
-      const analysisRes = await analyzeVideo(projectId);
-      const analysisId = analysisRes.data.data.analysis.id;
+      unsubscribeSSE = startSSETracking(projectId);
+
+      await analyzeVideo(projectId);
+
+      const analysisId = await pollForCompletion(projectId);
+      unsubscribeSSE?.();
 
       // Stage 3: Done
       setStage("done");
-      setUploadPct(100);
 
       setTimeout(() => {
         navigate(`/app/analysis/${analysisId}`);
-      }, 800);
-
+      }, 1000);
     } catch (err) {
+      unsubscribeSSE?.();
       setStage(null);
       setError(err.message || "Something went wrong. Please try again.");
       toast.error(err.message || "Analysis failed");
     }
   };
 
-  const currentStageIdx = UPLOAD_STAGES.findIndex(s => s.key === stage);
-
   return (
-    <div style={{ padding: "40px 32px", maxWidth: 800, margin: "0 auto" }}>
-
+    <div style={{ padding: "40px 32px", maxWidth: 860, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 36 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 6 }}>
           Analyze Your Video
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)" }}>
-          Upload a video and get a complete AI-powered strategy in under 60 seconds.
+          Upload a video and get a complete AI-powered strategy across YouTube and Instagram.
         </p>
         {dbUser?.totalAnalyses !== undefined && (
           <div className="badge badge-brand" style={{ marginTop: 10 }}>
@@ -228,7 +330,7 @@ export default function UploadPage() {
                     {file.name}
                   </p>
                   <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                    {(file.size / (1024 * 1024)).toFixed(1)} MB · {file.type.split("/")[1].toUpperCase()}
+                    {(file.size / (1024 * 1024)).toFixed(1)} MB · {file.type.split("/")[1]?.toUpperCase() || "MP4"}
                   </p>
                 </div>
                 <button
@@ -275,77 +377,47 @@ export default function UploadPage() {
             disabled={!file}
           >
             <SparklesIcon style={{ width: 20, height: 20 }} />
-            Run AI Analysis
+            Run AI Multi-Agent Analysis
           </button>
 
           <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-muted)", marginTop: 12 }}>
-            7 AI agents · ~30–60 seconds · Powered by Gemini 2.5 Flash
+            7 Specialized Agents · Real-time Streaming · Gemini 2.5 Flash
           </p>
         </>
       )}
 
-      {/* Progress View */}
-      {stage && (
+      {/* Stage: Uploading to Cloudinary */}
+      {stage === "uploading" && (
         <div className="glass-card animate-scaleIn" style={{ padding: 48, textAlign: "center" }}>
-          {/* Animated Logo */}
           <div style={{
-            width: 80, height: 80, borderRadius: 22, background: "var(--gradient-brand)",
+            width: 72, height: 72, borderRadius: 20, background: "var(--gradient-brand)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 24px", animation: stage === "done" ? "none" : "pulse-glow 2s ease-in-out infinite",
-            boxShadow: "var(--glow-brand)",
+            margin: "0 auto 20px", boxShadow: "var(--glow-brand)",
           }}>
-            {stage === "done"
-              ? <CheckCircleIcon style={{ width: 44, height: 44, color: "#fff" }} />
-              : <SparklesIcon style={{ width: 44, height: 44, color: "#fff", animation: "spin-slow 3s linear infinite" }} />
-            }
+            <CloudArrowUpIcon style={{ width: 36, height: 36, color: "#fff", animation: "bounce 2s infinite" }} />
           </div>
-
-          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, letterSpacing: "-0.02em" }}>
-            {stage === "done" ? "Analysis Complete! 🎉" : "AI Agents Working..."}
+          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
+            Uploading Video to Cloud...
           </h2>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 32 }}>
-            {stage === "uploading" && "Uploading your video to secure cloud storage..."}
-            {stage === "analyzing" && "7 specialized AI agents are analyzing your video in parallel..."}
-            {stage === "done" && "Redirecting to your results..."}
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 24 }}>
+            Direct secure upload to Cloudinary CDN ({uploadPct}%)
           </p>
-
-          {/* Progress Bar */}
-          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 99, height: 8, marginBottom: 24, overflow: "hidden" }}>
+          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 99, height: 8, overflow: "hidden", maxWidth: 400, margin: "0 auto" }}>
             <div style={{
               height: "100%", borderRadius: 99, background: "var(--gradient-brand)",
-              width: `${uploadPct}%`, transition: "width 0.6s ease",
+              width: `${uploadPct}%`, transition: "width 0.3s ease",
             }} />
           </div>
-
-          {/* Stage list */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, textAlign: "left" }}>
-            {UPLOAD_STAGES.map((s, i) => {
-              const done = currentStageIdx > i || stage === "done";
-              const active = s.key === stage;
-              return (
-                <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-                    background: done ? "var(--gradient-brand)" : active ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.06)",
-                    border: active ? "2px solid var(--brand-500)" : "none",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all 0.3s ease",
-                  }}>
-                    {done && <CheckCircleIcon style={{ width: 14, height: 14, color: "#fff" }} />}
-                    {active && !done && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--brand-500)", animation: "pulse-glow 1s ease-in-out infinite" }} />}
-                  </div>
-                  <span style={{
-                    fontSize: 14, fontWeight: active ? 600 : 400,
-                    color: done ? "var(--text-primary)" : active ? "var(--text-accent)" : "var(--text-muted)",
-                    transition: "all 0.3s ease",
-                  }}>
-                    {s.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
         </div>
+      )}
+
+      {/* Stage: Analyzing with 7 Real-time Agents */}
+      {(stage === "analyzing" || stage === "done") && (
+        <AgentProgressTracker
+          agentStatuses={agentStatuses}
+          videoPrepStatus={videoPrepStatus}
+          isComplete={stage === "done"}
+        />
       )}
     </div>
   );

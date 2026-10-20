@@ -50,9 +50,8 @@ const FEATURES = [
 ];
 
 const PLATFORMS = [
-  { name: "YouTube", color: "#ff4444", desc: "SEO titles, descriptions, chapters, tags & thumbnail advice" },
-  { name: "LinkedIn", color: "#3b9eff", desc: "Professional hooks, posts, CTAs & 3 tone variations" },
-  { name: "X (Twitter)", color: "#e7e9ea", desc: "Punchy tweets, full threads & 3 angle variations" },
+  { name: "YouTube", color: "#ff4444", desc: "SEO titles, descriptions, chapters, tags & thumbnail advice for long-form & Shorts" },
+  { name: "Instagram", color: "#E1306C", desc: "Reels scripts, 3-second hooks, engaging captions, audio vibes & hashtag clouds" },
 ];
 
 const SCORES = [
@@ -191,7 +190,7 @@ export default function Landing() {
             </div>
             <div style={{ marginTop: 20, padding: "12px 16px", background: "rgba(99,102,241,0.08)", borderRadius: 10, border: "1px solid rgba(99,102,241,0.15)" }}>
               <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                💡 <strong style={{ color: "var(--text-accent)" }}>Strategy:</strong> Post on YouTube Tuesday 2–4 PM EST, then cross-promote on LinkedIn Wednesday morning.
+                💡 <strong style={{ color: "var(--text-accent)" }}>Strategy:</strong> Post long-form video on YouTube Tuesday afternoon, then publish viral Reels hook on Instagram Wednesday morning.
               </p>
             </div>
           </div>
@@ -203,13 +202,13 @@ export default function Landing() {
         <div className="content-container">
           <div style={{ textAlign: "center", marginBottom: 48 }}>
             <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 12 }}>
-              One Upload. <span className="gradient-text">Three Platforms.</span>
+              One Video. <span className="gradient-text">Two Powerhouse Platforms.</span>
             </h2>
             <p style={{ color: "var(--text-secondary)", fontSize: 16, maxWidth: 480, margin: "0 auto" }}>
-              Platform-native content that feels like it was written by a specialist for each network.
+              Platform-native content that feels tailored by a specialist for YouTube search and Instagram Reels discovery.
             </p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
             {PLATFORMS.map((p) => (
               <div key={p.name} className="glass-card" style={{ padding: 28 }}>
                 <div style={{
@@ -219,7 +218,7 @@ export default function Landing() {
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 22,
                 }}>
-                  {p.name === "YouTube" ? "▶" : p.name === "LinkedIn" ? "in" : "𝕏"}
+                  {p.name === "YouTube" ? "▶" : "📸"}
                 </div>
                 <h3 style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: p.color }}>{p.name}</h3>
                 <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>{p.desc}</p>

@@ -21,8 +21,7 @@ const VOICES = [
 
 const PLATFORMS = [
   { value: "youtube", label: "YouTube", icon: "▶", color: "#ff4444" },
-  { value: "linkedin", label: "LinkedIn", icon: "in", color: "#3b9eff" },
-  { value: "x", label: "X (Twitter)", icon: "𝕏", color: "#e7e9ea" },
+  { value: "instagram", label: "Instagram", icon: "📸", color: "#E1306C" },
 ];
 
 export default function Onboarding() {

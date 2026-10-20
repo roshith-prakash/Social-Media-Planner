@@ -3,6 +3,30 @@ import AnalysisRepository from "../repositories/AnalysisRepository.js";
 import VideoRepository from "../repositories/VideoRepository.js";
 import { successResponse, errorResponse } from "../utils/apiResponse.js";
 import asyncWrapper from "../utils/asyncWrapper.js";
+import { registerClient, removeClient } from "../utils/sseEmitter.js";
+
+/**
+ * GET /api/v1/analysis/stream/:projectId
+ * Establishes an SSE stream for real-time agent execution progress.
+ */
+export const streamAnalysis = asyncWrapper(async (req, res) => {
+  const { projectId } = req.params;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  if (typeof res.flushHeaders === "function") res.flushHeaders();
+
+  res.write(`event: connected\ndata: ${JSON.stringify({ projectId, connectedAt: new Date().toISOString() })}\n\n`);
+
+  registerClient(projectId, res);
+
+  req.on("close", () => {
+    removeClient(projectId, res);
+  });
+});
+
 
 /**
  * POST /api/v1/analysis/analyze  (protected)
@@ -25,16 +49,31 @@ export const analyzeVideo = asyncWrapper(async (req, res) => {
     brandVoice: req.dbUser.brandVoice || "professional",
   };
 
-  // Run the full 7-agent pipeline
-  const analysis = await AnalysisService.runFullAnalysis(
-    projectId,
-    req.dbUser.id,
-    project.cloudinaryUrl,
-    userHints
-  );
+  // Mark project as analyzing immediately
+  await VideoRepository.updateStatus(projectId, "analyzing");
 
-  return successResponse(res, { analysis }, "Analysis complete", 201);
+  // Run the full 7-agent pipeline asynchronously in the background
+  setImmediate(() => {
+    AnalysisService.runFullAnalysis(
+      projectId,
+      req.dbUser.id,
+      project.cloudinaryUrl,
+      userHints
+    ).catch((err) => {
+      console.error(`[Analysis Error] Project ${projectId}:`, err.message || err);
+    });
+  });
+
+  return res.status(202).json({
+    success: true,
+    data: {
+      projectId,
+      status: "analyzing",
+      message: "Analysis started. Please poll video project status.",
+    },
+  });
 });
+
 
 /**
  * GET /api/v1/analysis/:projectId  (protected)

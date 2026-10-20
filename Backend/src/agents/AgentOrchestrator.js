@@ -7,6 +7,7 @@ import ContentAgent from "./ContentAgent.js";
 import QualityAgent from "./QualityAgent.js";
 import StrategyAgent from "./StrategyAgent.js";
 import fetch from "node-fetch";
+import { emit } from "../utils/sseEmitter.js";
 
 /**
  * AgentOrchestrator — Coordinates all 7 AI agents.
@@ -36,8 +37,11 @@ class AgentOrchestrator {
    * Upload a video from a Cloudinary URL to Gemini File API.
    * The file is temporary (auto-deleted by Google after 48 hours).
    */
-  async uploadVideoToGemini(cloudinaryUrl) {
+  async uploadVideoToGemini(cloudinaryUrl, projectId = null) {
     console.log("📤 Uploading video to Gemini File API...");
+    if (projectId) {
+      emit(projectId, "video_upload_start", { status: "uploading_to_gemini" });
+    }
 
     // Stream the video from Cloudinary into a buffer
     const response = await fetch(cloudinaryUrl);
@@ -63,6 +67,9 @@ class AgentOrchestrator {
 
     while (file.state === "PROCESSING" && attempts < maxAttempts) {
       console.log(`⏳ Gemini processing video... (attempt ${attempts + 1})`);
+      if (projectId) {
+        emit(projectId, "video_processing", { attempt: attempts + 1, maxAttempts });
+      }
       await new Promise((r) => setTimeout(r, 5000));
       file = await ai.files.get({ name: file.name });
       attempts++;
@@ -73,15 +80,18 @@ class AgentOrchestrator {
     }
 
     console.log(`✅ Video uploaded to Gemini. URI: ${file.uri}`);
+    if (projectId) {
+      emit(projectId, "video_ready", { uri: file.uri });
+    }
     return file.uri;
   }
 
   /**
    * Run a single agent safely — catches errors without crashing the pipeline.
    */
-  async runAgent(agent, videoUri, context, agentErrors) {
+  async runAgent(agent, videoUri, context, agentErrors, projectId = null) {
     try {
-      return await agent.run(videoUri, context);
+      return await agent.run(videoUri, context, projectId);
     } catch (error) {
       console.error(`⚠️  ${agent.name} failed (non-fatal):`, error.message);
       agentErrors.push({ agent: agent.name, error: error.message });
@@ -93,21 +103,22 @@ class AgentOrchestrator {
    * Main orchestration pipeline.
    * @param {string} cloudinaryUrl - Secure Cloudinary video URL
    * @param {object} userHints - Optional user-provided metadata (title, niche, brandVoice)
+   * @param {string} projectId - Optional project ID for SSE real-time streaming
    * @returns {object} - Complete analysis object
    */
-  async orchestrate(cloudinaryUrl, userHints = {}) {
+  async orchestrate(cloudinaryUrl, userHints = {}, projectId = null) {
     const startTime = Date.now();
     const agentErrors = [];
     const context = { userHints };
 
     // ── Upload video to Gemini File API ────────────────────────────────────
-    const videoUri = await this.uploadVideoToGemini(cloudinaryUrl);
+    const videoUri = await this.uploadVideoToGemini(cloudinaryUrl, projectId);
 
     // ── Phase 1: Parallel — Video Understanding ────────────────────────────
     console.log("\n🔍 Phase 1: Video Understanding (parallel)");
     const [videoAnalysis, audienceAnalysis] = await Promise.all([
-      this.runAgent(this.videoAnalysisAgent, videoUri, context, agentErrors),
-      this.runAgent(this.audienceAgent, videoUri, context, agentErrors),
+      this.runAgent(this.videoAnalysisAgent, videoUri, context, agentErrors, projectId),
+      this.runAgent(this.audienceAgent, videoUri, context, agentErrors, projectId),
     ]);
 
     context.videoAnalysis = videoAnalysis;
@@ -116,8 +127,8 @@ class AgentOrchestrator {
     // ── Phase 2: Parallel — Strategy ──────────────────────────────────────
     console.log("\n🎯 Phase 2: Strategy (parallel)");
     const [platformRecommendations, seoData] = await Promise.all([
-      this.runAgent(this.platformAgent, null, context, agentErrors),
-      this.runAgent(this.seoAgent, null, context, agentErrors),
+      this.runAgent(this.platformAgent, null, context, agentErrors, projectId),
+      this.runAgent(this.seoAgent, null, context, agentErrors, projectId),
     ]);
 
     context.platformRecommendations = platformRecommendations;
@@ -129,7 +140,8 @@ class AgentOrchestrator {
       this.contentAgent,
       null,
       context,
-      agentErrors
+      agentErrors,
+      projectId
     );
     context.generatedContent = generatedContent;
 
@@ -139,7 +151,8 @@ class AgentOrchestrator {
       this.qualityAgent,
       null,
       context,
-      agentErrors
+      agentErrors,
+      projectId
     );
     context.qualityReview = qualityReview;
 
@@ -149,11 +162,16 @@ class AgentOrchestrator {
       this.strategyAgent,
       null,
       context,
-      agentErrors
+      agentErrors,
+      projectId
     );
 
     const processingTimeMs = Date.now() - startTime;
     console.log(`\n🎉 Analysis complete in ${processingTimeMs}ms`);
+
+    if (projectId) {
+      emit(projectId, "complete", { success: true, processingTimeMs });
+    }
 
     return {
       videoAnalysis,
@@ -171,3 +189,4 @@ class AgentOrchestrator {
 }
 
 export default AgentOrchestrator;
+

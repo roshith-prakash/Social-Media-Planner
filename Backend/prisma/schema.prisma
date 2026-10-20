@@ -28,8 +28,26 @@ model User {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  projects VideoProject[]
-  drafts   SavedDraft[]
+  // YouTube OAuth
+  youtubeAccessToken  String?
+  youtubeRefreshToken String?
+  youtubeTokenExpiry  DateTime?
+  youtubeChannelId    String?
+  youtubeChannelName  String?
+
+  // Instagram OAuth (Meta Graph API)
+  instagramId          String?
+  instagramUsername    String?
+  instagramName        String?
+  instagramProfilePic  String?
+  instagramAccessToken String?   // Encrypted long-lived token
+  instagramTokenExpiry DateTime?
+  instagramBusinessId  String?   // Instagram Business/Creator Account ID
+  instagramPageId      String?   // Connected Facebook Page ID
+
+  projects       VideoProject[]
+  drafts         SavedDraft[]
+  scheduledPosts ScheduledPost[]
 }
 
 // ─── VideoProject ─────────────────────────────────────────────────────────────
@@ -48,11 +66,13 @@ model VideoProject {
   // pending | analyzing | completed | failed
   status             String   @default("pending")
   errorMessage       String?
+  youtubeVideoId     String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  analysis VideoAnalysis?
-  drafts   SavedDraft[]
+  analysis       VideoAnalysis?
+  drafts         SavedDraft[]
+  scheduledPosts ScheduledPost[]
 }
 
 // ─── VideoAnalysis ────────────────────────────────────────────────────────────
@@ -95,13 +115,44 @@ model SavedDraft {
   projectId  String @db.ObjectId
   project    VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  platform        String // youtube | linkedin | x
-  contentType     String // title | description | tweet | thread | post | hashtags
+  platform        String // youtube | instagram
+  contentType     String // title | description | caption | reels_script | carousel | hashtags
   label           String?  @default("")
   originalContent String?  @default("")
   editedContent   String
   isFavorited     Boolean  @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  scheduledPosts ScheduledPost[]
 }
+
+// ─── AnalysisCache ────────────────────────────────────────────────────────────
+
+model AnalysisCache {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  cloudinaryPublicId String   @unique
+  results            Json
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+}
+
+// ─── ScheduledPost ────────────────────────────────────────────────────────────
+
+model ScheduledPost {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @db.ObjectId
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String        @db.ObjectId
+  project     VideoProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  draftId     String?       @db.ObjectId
+  draft       SavedDraft?   @relation(fields: [draftId], references: [id], onDelete: SetNull)
+  platform    String        // youtube | instagram
+  content     String?
+  scheduledAt DateTime
+  status      String        @default("pending") // pending | published | failed | cancelled
+  errorMsg    String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+

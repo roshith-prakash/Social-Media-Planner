@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema(
     },
     preferredPlatforms: {
       type: [String],
-      enum: ["youtube", "linkedin", "x"],
+      enum: ["youtube", "instagram"],
       default: [],
     },
     onboardingCompleted: {

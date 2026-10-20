@@ -110,3 +110,25 @@ export const deleteProject = asyncWrapper(async (req, res) => {
   await VideoRepository.delete(project.id);
   return successResponse(res, {}, "Project deleted");
 });
+
+/**
+ * GET /api/v1/videos/signed/:publicId  (protected)
+ * Generates a signed, time-limited URL for secure playback and access.
+ */
+export const getSignedUrl = asyncWrapper(async (req, res) => {
+  const { publicId } = req.params;
+  const project = await VideoRepository.findByPublicId(publicId);
+  if (!project) return errorResponse(res, "Video project not found", 404);
+  if (project.userId !== req.dbUser.id) return errorResponse(res, "Unauthorized", 403);
+
+  const expiresAt = Math.floor(Date.now() / 1000) + 1800; // 30 minutes
+  const signedUrl = cloudinary.url(publicId, {
+    resource_type: "video",
+    sign_url: true,
+    expires_at: expiresAt,
+    secure: true,
+  });
+
+  return successResponse(res, { url: signedUrl, expiresAt });
+});
+

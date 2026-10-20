@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getMyProjects, deleteProject } from "../../api/videoApi";
+import { getMyProjects, deleteProject, getProjectById } from "../../api/videoApi";
+import { analyzeVideo } from "../../api/analysisApi";
 import {
   SparklesIcon,
   VideoCameraIcon,
   TrashIcon,
   ArrowTopRightOnSquareIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
+
 import toast from "react-hot-toast";
 
 const STATUS_STYLES = {
@@ -48,12 +51,69 @@ export default function ProjectsPage() {
 
   useEffect(() => { load(); }, [page]);
 
+  const [analyzingIds, setAnalyzingIds] = useState(new Set());
+
+  const handleStartAnalysis = async (projectId) => {
+    setAnalyzingIds((prev) => new Set(prev).add(projectId));
+    setProjects((prev) =>
+      prev.map((p) => (p.id === projectId ? { ...p, status: "analyzing" } : p))
+    );
+    toast.success("AI analysis started");
+
+    try {
+      await analyzeVideo(projectId);
+
+      // Poll until project is completed or failed
+      const interval = setInterval(async () => {
+        try {
+          const res = await getProjectById(projectId);
+          const updated = res.data?.data?.project;
+          if (updated?.status === "completed") {
+            clearInterval(interval);
+            setAnalyzingIds((prev) => {
+              const next = new Set(prev);
+              next.delete(projectId);
+              return next;
+            });
+            setProjects((prev) =>
+              prev.map((p) => (p.id === projectId ? updated : p))
+            );
+            toast.success(`Analysis ready for "${updated.title}"! 🎉`);
+          } else if (updated?.status === "failed") {
+            clearInterval(interval);
+            setAnalyzingIds((prev) => {
+              const next = new Set(prev);
+              next.delete(projectId);
+              return next;
+            });
+            setProjects((prev) =>
+              prev.map((p) => (p.id === projectId ? updated : p))
+            );
+            toast.error(updated.errorMessage || "Analysis failed");
+          }
+        } catch (e) {
+          console.warn("Project poll error:", e);
+        }
+      }, 3000);
+    } catch (err) {
+      setAnalyzingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(projectId);
+        return next;
+      });
+      setProjects((prev) =>
+        prev.map((p) => (p.id === projectId ? { ...p, status: "pending" } : p))
+      );
+      toast.error(err.message || "Failed to trigger analysis");
+    }
+  };
+
   const handleDelete = async (projectId) => {
     if (!confirm("Delete this project and all its data?")) return;
     setDeleting(projectId);
     try {
       await deleteProject(projectId);
-      setProjects(p => p.filter(pr => pr.id !== projectId));
+      setProjects((p) => p.filter((pr) => pr.id !== projectId));
       toast.success("Project deleted");
     } catch (err) {
       toast.error(err.message);
@@ -61,6 +121,7 @@ export default function ProjectsPage() {
       setDeleting(null);
     }
   };
+
 
   return (
     <div style={{ padding: "40px 32px" }}>
@@ -150,21 +211,59 @@ export default function ProjectsPage() {
 
                   {/* Actions */}
                   <div style={{ display: "flex", gap: 8 }}>
-                    {project.status === "completed" && project.analysis?.id && (
+                    {project.status === "completed" && (
+                      <div style={{ display: "flex", gap: 6, flex: 1 }}>
+                        {project.analysis?.id && (
+                          <Link
+                            to={`/app/analysis/${project.analysis.id}`}
+                            className="btn btn-secondary btn-sm"
+                            style={{ flex: 1, justifyContent: "center" }}
+                          >
+                            <ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />
+                            Results
+                          </Link>
+                        )}
+                        <Link
+                          to={`/app/analytics/${project.id}`}
+                          className="btn btn-secondary btn-sm"
+                          style={{ flex: 1, justifyContent: "center" }}
+                        >
+                          <ChartBarIcon style={{ width: 14, height: 14 }} />
+                          Analytics
+                        </Link>
+                      </div>
+                    )}
+
+                    {(project.status === "analyzing" || analyzingIds.has(project.id)) && (
                       <Link
-                        to={`/app/analysis/${project.analysis.id}`}
+                        to={`/app/upload?projectId=${project.id}`}
                         className="btn btn-secondary btn-sm"
+                        style={{ flex: 1, justifyContent: "center", color: "var(--text-accent)" }}
+                      >
+                        <SparklesIcon style={{ width: 14, height: 14, animation: "spin-slow 3s linear infinite" }} />
+                        Analyzing...
+                      </Link>
+                    )}
+                    {project.status === "pending" && !analyzingIds.has(project.id) && (
+                      <button
+                        onClick={() => handleStartAnalysis(project.id)}
+                        className="btn btn-primary btn-sm"
                         style={{ flex: 1, justifyContent: "center" }}
                       >
-                        <ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />
-                        View Results
-                      </Link>
-                    )}
-                    {project.status === "pending" && (
-                      <Link to="/app/upload" className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: "center" }}>
+                        <SparklesIcon style={{ width: 14, height: 14 }} />
                         Analyze
-                      </Link>
+                      </button>
                     )}
+                    {project.status === "failed" && !analyzingIds.has(project.id) && (
+                      <button
+                        onClick={() => handleStartAnalysis(project.id)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ flex: 1, justifyContent: "center", borderColor: "rgba(239,68,68,0.3)", color: "#f87171" }}
+                      >
+                        Retry Analysis
+                      </button>
+                    )}
+
                     <button
                       id={`delete-project-${project.id}`}
                       className="btn btn-ghost btn-sm"

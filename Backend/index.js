@@ -8,6 +8,7 @@ import cors from "cors";
 import prisma from "./src/config/prisma.js";
 import "./src/config/cloudinary.js";
 import "./src/config/gemini.js";
+import "./src/config/redis.js";
 
 // Middleware
 import errorHandler from "./src/middleware/errorHandler.js";
@@ -19,6 +20,14 @@ import userRouter from "./src/routes/user.routes.js";
 import videoRouter from "./src/routes/video.routes.js";
 import analysisRouter from "./src/routes/analysis.routes.js";
 import draftRouter from "./src/routes/draft.routes.js";
+import youtubeRouter from "./src/routes/youtube.routes.js";
+import instagramRouter from "./src/routes/instagram.routes.js";
+import scheduleRouter from "./src/routes/schedule.routes.js";
+import analyticsRouter from "./src/routes/analytics.routes.js";
+
+// Agenda job scheduler
+import agenda from "./src/config/agenda.js";
+import "./src/jobs/publishPost.job.js";
 
 // ── App Setup ────────────────────────────────────────────────────────────────
 
@@ -71,6 +80,10 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/videos", videoRouter);
 app.use("/api/v1/analysis", analysisRouter);
 app.use("/api/v1/drafts", draftRouter);
+app.use("/api/v1/youtube", youtubeRouter);
+app.use("/api/v1/instagram", instagramRouter);
+app.use("/api/v1/schedule", scheduleRouter);
+app.use("/api/v1/analytics", analyticsRouter);
 
 // ── 404 Handler ──────────────────────────────────────────────────────────────
 
@@ -95,6 +108,15 @@ const start = async () => {
     await prisma.$connect();
     console.log("✅ Database connected via Prisma");
 
+    if (agenda) {
+      try {
+        await agenda.start();
+        console.log("⏰ Agenda scheduler started");
+      } catch (agendaErr) {
+        console.warn("⚠️ Agenda scheduler start skipped:", agendaErr.message);
+      }
+    }
+
     server.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`📡 API: http://localhost:${PORT}/api/v1`);
@@ -107,3 +129,4 @@ const start = async () => {
 };
 
 start();
+

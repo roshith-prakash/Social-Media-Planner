@@ -15,6 +15,14 @@ class VideoRepository {
     });
   }
 
+  async findByPublicId(cloudinaryPublicId) {
+    return prisma.videoProject.findFirst({
+      where: { cloudinaryPublicId },
+      include: { analysis: true },
+    });
+  }
+
+
   async findByUserId(userId, { skip = 0, take = 20 } = {}) {
     return prisma.videoProject.findMany({
       where: { userId },

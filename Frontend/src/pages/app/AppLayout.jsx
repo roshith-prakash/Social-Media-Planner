@@ -8,14 +8,17 @@ import {
   FolderOpenIcon,
   UserCircleIcon,
   ArrowRightStartOnRectangleIcon,
+  CalendarDaysIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
 const NAV_ITEMS = [
   { path: "/app/upload", label: "Analyze Video", icon: VideoCameraIcon },
   { path: "/app/projects", label: "My Projects", icon: FolderOpenIcon },
+  { path: "/app/calendar", label: "Calendar", icon: CalendarDaysIcon },
   { path: "/app/profile", label: "Profile", icon: UserCircleIcon },
 ];
+
 
 export default function AppLayout() {
   const navigate = useNavigate();

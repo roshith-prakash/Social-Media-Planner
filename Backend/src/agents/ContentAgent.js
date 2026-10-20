@@ -3,9 +3,10 @@ import BaseAgent from "./BaseAgent.js";
 /**
  * ContentAgent — Phase 3
  *
- * Generates platform-optimized content for YouTube, LinkedIn, and X.
- * Each platform gets multiple tone variations:
- * professional, seo-focused, curiosity-driven, minimal, click-worthy.
+ * Generates platform-optimized content for YouTube and Instagram.
+ * YouTube: SEO titles, descriptions, chapters, tags, hashtags, thumbnails.
+ * Instagram: Reels scripts, 3-second visual/verbal hooks, captions, hashtags,
+ * audio vibes, and carousel slide breakdowns.
  */
 class ContentAgent extends BaseAgent {
   constructor() {
@@ -25,7 +26,7 @@ class ContentAgent extends BaseAgent {
 
     return `
 You are an elite social media content strategist and copywriter. 
-Generate highly optimized, platform-specific content for all three platforms.
+Generate highly optimized, platform-specific content for YouTube and Instagram.
 
 VIDEO INTELLIGENCE:
 - Topic: ${va.topic}
@@ -58,7 +59,7 @@ Generate content in EXACTLY this JSON structure:
     "titles": [
       { "text": "SEO-optimized title", "tone": "seo", "reasoning": "Why this title ranks well" },
       { "text": "Curiosity-driven title", "tone": "curiosity", "reasoning": "Why this creates clicks" },
-      { "text": "Professional title", "tone": "professional", "reasoning": "Suits B2B sharing" },
+      { "text": "Professional title", "tone": "professional", "reasoning": "Suits industry sharing" },
       { "text": "Click-worthy title", "tone": "clickworthy", "reasoning": "High CTR potential" },
       { "text": "Minimal clear title", "tone": "minimal", "reasoning": "Clear value proposition" }
     ],
@@ -84,32 +85,42 @@ Generate content in EXACTLY this JSON structure:
     },
     "cta": "Subscribe CTA text for end screen / pinned comment"
   },
-  "linkedin": {
-    "hook": "First line that stops the scroll (no hashtags, pure hook)",
-    "post": "Full LinkedIn post (150-300 words). Professional tone. Uses line breaks for readability. Tells a story or shares an insight. Ends with a question.",
-    "cta": "Clear call to action e.g. 'What would you add? Drop it below 👇'",
-    "hashtags": ["#hashtag1", "#hashtag2", "...5-8 LinkedIn hashtags"],
-    "variations": [
-      { "tone": "storytelling", "content": "Alternative full post using storytelling format" },
-      { "tone": "listicle", "content": "Alternative post using numbered list format" },
-      { "tone": "controversial", "content": "Alternative post with a bold/contrarian take to spark debate" }
-    ]
-  },
-  "x": {
-    "tweet": "Single tweet under 280 characters. Punchy, opinionated, or insightful.",
-    "thread": [
-      "Tweet 1: Hook — statement or question that demands attention",
-      "Tweet 2: Point 1 with context",
-      "Tweet 3: Point 2 with example",
-      "Tweet 4: Point 3 with data or insight",
-      "Tweet 5: Summary + CTA"
+  "instagram": {
+    "hook": {
+      "visualHook": "Exact visual action or on-screen text in seconds 0-3 that stops the scroll",
+      "verbalHook": "Exact opening spoken sentence to hook the viewer immediately"
+    },
+    "caption": "Primary Instagram caption (150-250 words) with attention-grabbing first line, clean paragraph breaks, emojis, core takeaway, and engaging question to prompt comments.",
+    "cta": "Clear call to action e.g. 'Save this Reel for later 🔖 and share with a friend!'",
+    "reelsScript": [
+      { "timestamp": "0:00 - 0:03", "section": "Hook", "script": "Spoken hook sentence", "onScreenText": "BOLD 3-WORD HOOK" },
+      { "timestamp": "0:03 - 0:15", "section": "The Problem", "script": "Relatable problem setup", "onScreenText": "Key struggle" },
+      { "timestamp": "0:15 - 0:45", "section": "The Solution / Demo", "script": "High-value actionable breakdown", "onScreenText": "Step-by-step pointers" },
+      { "timestamp": "0:45 - 0:60", "section": "CTA", "script": "Wrap-up and follow prompt", "onScreenText": "Follow for more daily tips" }
     ],
-    "cta": "Follow/retweet CTA",
-    "hashtags": ["#hashtag1", "#hashtag2", "...3-5 X hashtags"],
+    "hashtags": {
+      "niche": ["#nicheTag1", "#nicheTag2"],
+      "broad": ["#broadTag1", "#broadTag2"],
+      "community": ["#communityTag1", "#communityTag2"]
+    },
+    "audioRecommendation": {
+      "soundType": "Trending upbeat electronic / chill lofi beat",
+      "pacing": "Fast-paced rhythm matching video cuts"
+    },
+    "carouselConcept": {
+      "title": "5-slide educational carousel idea derived from this video",
+      "slides": [
+        "Slide 1: Hook / Title slide",
+        "Slide 2: Insight 1",
+        "Slide 3: Insight 2",
+        "Slide 4: Insight 3",
+        "Slide 5: Summary + Save & Share CTA"
+      ]
+    },
     "variations": [
-      { "tone": "educational", "content": "Alternative single tweet: educational angle" },
-      { "tone": "opinionated", "content": "Alternative single tweet: bold opinion" },
-      { "tone": "question", "content": "Alternative single tweet: engaging question" }
+      { "tone": "storytelling", "caption": "Alternative story-driven caption format" },
+      { "tone": "actionable_tips", "caption": "Alternative numbered tip checklist caption" },
+      { "tone": "contrarian", "caption": "Alternative bold/contrarian angle that sparks debate" }
     ]
   }
 }
@@ -117,8 +128,7 @@ Generate content in EXACTLY this JSON structure:
 Rules:
 - Every piece of content must feel NATIVE to its platform
 - YouTube titles must include the primary keyword naturally
-- LinkedIn posts must NOT feel like marketing copy — they should feel human
-- X tweets must be under 280 characters
+- Instagram captions must use spacing and emojis naturally, avoid dense blocks of text
 - Return ONLY valid JSON, no commentary outside the JSON object
 `;
   }

@@ -17,6 +17,15 @@ import UploadPage from "./pages/app/UploadPage";
 import AnalysisPage from "./pages/app/AnalysisPage";
 import ProjectsPage from "./pages/app/ProjectsPage";
 import ProfilePage from "./pages/app/ProfilePage";
+import CalendarPage from "./pages/app/CalendarPage";
+import AnalyticsPage from "./pages/app/AnalyticsPage";
+
+
+// Social Media Integration Pages
+import YouTubeLogin from "./pages/ConnectYoutube";
+import YouTubeSuccess from "./pages/YoutubeSuccess";
+import InstagramSuccess from "./pages/InstagramSuccess";
+import UploadVideoFromCDN from "./pages/YoutubeUpload";
 
 export default function App() {
   return (
@@ -47,6 +56,10 @@ export default function App() {
             <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
+            {/* ── Social OAuth Callbacks & Pages ───────────────────── */}
+            <Route path="/youtube/success" element={<YouTubeSuccess />} />
+            <Route path="/instagram/success" element={<InstagramSuccess />} />
+
             {/* ── Onboarding (after signup) ────────────────────────── */}
             <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
 
@@ -55,13 +68,19 @@ export default function App() {
               <Route index element={<Navigate to="/app/upload" replace />} />
               <Route path="upload" element={<UploadPage />} />
               <Route path="projects" element={<ProjectsPage />} />
+              <Route path="calendar" element={<CalendarPage />} />
               <Route path="analysis/:id" element={<AnalysisPage />} />
+              <Route path="analytics/:projectId" element={<AnalyticsPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="connect-youtube" element={<YouTubeLogin />} />
+              <Route path="youtube-upload" element={<UploadVideoFromCDN />} />
             </Route>
+
 
             {/* ── Fallback ─────────────────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+
         </UserProvider>
       </AuthProvider>
     </Router>

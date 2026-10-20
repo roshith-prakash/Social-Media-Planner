@@ -10,6 +10,7 @@ export const PlatformCard = ({
 }) => {
   const buttonClasses = {
     youtube: "btn-youtube",
+    instagram: "btn-instagram",
     linkedin: "btn-linkedin",
     twitter: "btn-twitter",
   };

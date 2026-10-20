@@ -10,6 +10,7 @@ export function useUser() {
   if (!context) throw new Error("useUser must be used within UserProvider");
   return context;
 }
+export const useDBUser = useUser;
 
 export function UserProvider({ children }) {
   const { currentUser, userLoggedIn } = useAuth();
