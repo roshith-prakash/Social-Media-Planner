@@ -21,11 +21,12 @@ import CalendarPage from "./pages/app/CalendarPage";
 import AnalyticsPage from "./pages/app/AnalyticsPage";
 
 
-// Social Media Integration Pages
 import YouTubeLogin from "./pages/ConnectYoutube";
 import YouTubeSuccess from "./pages/YoutubeSuccess";
 import InstagramSuccess from "./pages/InstagramSuccess";
 import UploadVideoFromCDN from "./pages/YoutubeUpload";
+import Twitter from "./pages/Twitter";
+import LinkedinLoginPage from "./pages/LinkedinLoginPage";
 
 export default function App() {
   return (
@@ -59,6 +60,8 @@ export default function App() {
             {/* ── Social OAuth Callbacks & Pages ───────────────────── */}
             <Route path="/youtube/success" element={<YouTubeSuccess />} />
             <Route path="/instagram/success" element={<InstagramSuccess />} />
+            <Route path="/twitter" element={<PrivateRoute><Twitter /></PrivateRoute>} />
+            <Route path="/linkedin" element={<PrivateRoute><LinkedinLoginPage /></PrivateRoute>} />
 
             {/* ── Onboarding (after signup) ────────────────────────── */}
             <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
@@ -74,6 +77,8 @@ export default function App() {
               <Route path="profile" element={<ProfilePage />} />
               <Route path="connect-youtube" element={<YouTubeLogin />} />
               <Route path="youtube-upload" element={<UploadVideoFromCDN />} />
+              <Route path="twitter" element={<Twitter />} />
+              <Route path="linkedin" element={<LinkedinLoginPage />} />
             </Route>
 
 

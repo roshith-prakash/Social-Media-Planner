@@ -22,6 +22,8 @@ import analysisRouter from "./src/routes/analysis.routes.js";
 import draftRouter from "./src/routes/draft.routes.js";
 import youtubeRouter from "./src/routes/youtube.routes.js";
 import instagramRouter from "./src/routes/instagram.routes.js";
+import twitterRouter from "./src/routes/twitter.routes.js";
+import linkedinRouter from "./src/routes/linkedin.routes.js";
 import scheduleRouter from "./src/routes/schedule.routes.js";
 import analyticsRouter from "./src/routes/analytics.routes.js";
 
@@ -82,6 +84,8 @@ app.use("/api/v1/analysis", analysisRouter);
 app.use("/api/v1/drafts", draftRouter);
 app.use("/api/v1/youtube", youtubeRouter);
 app.use("/api/v1/instagram", instagramRouter);
+app.use("/api/v1/twitter", twitterRouter);
+app.use("/api/v1/linkedin", linkedinRouter);
 app.use("/api/v1/schedule", scheduleRouter);
 app.use("/api/v1/analytics", analyticsRouter);
 
