@@ -4,11 +4,12 @@ import { getAnalysisById } from "../../api/analysisApi";
 import { regenerateAgent } from "../../api/analysisApi";
 import { createDraft } from "../../api/draftApi";
 import { schedulePost, publishNow } from "../../api/scheduleApi";
+import { useUser } from "../../context/UserContext";
 import {
   SparklesIcon, ClipboardDocumentIcon, CheckIcon,
   ArrowPathIcon, BookmarkIcon, ChevronDownIcon,
   ClockIcon, ChartBarIcon, XMarkIcon, CalendarDaysIcon,
-  BoltIcon, PaperAirplaneIcon,
+  BoltIcon, PaperAirplaneIcon, InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
@@ -139,11 +140,22 @@ const TABS = [
 export default function AnalysisPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { dbUser } = useUser();
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [activePlatform, setActivePlatform] = useState("youtube");
   const [regenerating, setRegenerating] = useState(null);
+
+  // Connected accounts check
+  const isYouTubeConnected = Boolean(dbUser?.youtubeAccessToken || dbUser?.youtubeChannelName || dbUser?.youtubeChannelId);
+  const isInstagramConnected = Boolean(dbUser?.instagramAccessToken || dbUser?.instagramUsername || dbUser?.instagramBusinessId);
+
+  const isPlatformConnected = (plat) => {
+    if (plat === "youtube") return isYouTubeConnected;
+    if (plat === "instagram") return isInstagramConnected;
+    return false;
+  };
 
   // Publish / Schedule modal state
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -182,10 +194,17 @@ export default function AnalysisPage() {
     }
   };
 
+  const resolvePreferredPlatform = (preferred) => {
+    if (isPlatformConnected(preferred)) return preferred;
+    if (isYouTubeConnected) return "youtube";
+    if (isInstagramConnected) return "instagram";
+    return preferred || "youtube";
+  };
+
   const handleOpenPublishNow = (text = "", platform = "youtube") => {
     setScheduleMode("now");
     setScheduleForm({
-      platform: platform || "youtube",
+      platform: resolvePreferredPlatform(platform),
       scheduledAt: "",
       content: typeof text === "string" ? text : Array.isArray(text) ? text.join("\n\n") : "",
     });
@@ -195,7 +214,7 @@ export default function AnalysisPage() {
   const handleOpenSchedule = (text = "", platform = "youtube") => {
     setScheduleMode("schedule");
     setScheduleForm({
-      platform: platform || "youtube",
+      platform: resolvePreferredPlatform(platform),
       scheduledAt: "",
       content: typeof text === "string" ? text : Array.isArray(text) ? text.join("\n\n") : "",
     });
@@ -204,6 +223,9 @@ export default function AnalysisPage() {
 
   const handleActionSubmit = async (e) => {
     e.preventDefault();
+    if (!isPlatformConnected(scheduleForm.platform)) {
+      return toast.error(`Please connect your ${PLATFORM_LABELS[scheduleForm.platform]} account in Profile before publishing.`);
+    }
     if (scheduleMode === "schedule" && !scheduleForm.scheduledAt) {
       return toast.error("Please pick a scheduled date and time");
     }
@@ -1090,31 +1112,82 @@ export default function AnalysisPage() {
                   Target Platform
                 </label>
                 <div style={{ display: "flex", gap: 10 }}>
-                  {["youtube", "instagram"].map((p) => (
-                    <button
-                      type="button"
-                      key={p}
-                      onClick={() => setScheduleForm({ ...scheduleForm, platform: p })}
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        fontWeight: 600,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        background: scheduleForm.platform === p ? `${PLATFORM_COLORS[p]}25` : "rgba(255,255,255,0.05)",
-                        border: `1px solid ${scheduleForm.platform === p ? PLATFORM_COLORS[p] : "rgba(255,255,255,0.1)"}`,
-                        color: scheduleForm.platform === p ? PLATFORM_COLORS[p] : "var(--text-secondary)",
-                      }}
-                    >
-                      {PLATFORM_LABELS[p]}
-                    </button>
-                  ))}
+                  {["youtube", "instagram"].map((p) => {
+                    const connected = isPlatformConnected(p);
+                    const isSelected = scheduleForm.platform === p;
+                    return (
+                      <button
+                        type="button"
+                        key={p}
+                        onClick={() => setScheduleForm({ ...scheduleForm, platform: p })}
+                        style={{
+                          flex: 1,
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: "pointer",
+                          background: isSelected ? `${PLATFORM_COLORS[p]}25` : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${isSelected ? PLATFORM_COLORS[p] : "rgba(255,255,255,0.08)"}`,
+                          color: isSelected ? PLATFORM_COLORS[p] : "var(--text-secondary)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 6,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span>{PLATFORM_LABELS[p]}</span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            background: connected ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                            color: connected ? "#4ade80" : "#f87171",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {connected ? "✓ Connected" : "✕ Not Connected"}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
+              {/* Account Connection Warning if disconnected */}
+              {!isPlatformConnected(scheduleForm.platform) && (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 8,
+                    background: "rgba(239, 68, 68, 0.08)",
+                    border: "1px solid rgba(239, 68, 68, 0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <InformationCircleIcon style={{ width: 18, height: 18, color: "#f87171", flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: "#f87171" }}>
+                      Your <strong>{PLATFORM_LABELS[scheduleForm.platform]}</strong> account is not connected.
+                    </span>
+                  </div>
+                  <Link
+                    to="/app/profile"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: 11, padding: "4px 10px", flexShrink: 0, textDecoration: "none" }}
+                  >
+                    Connect in Profile
+                  </Link>
+                </div>
+              )}
+
               {/* Informational callout if Post Now */}
-              {scheduleMode === "now" ? (
+              {scheduleMode === "now" && isPlatformConnected(scheduleForm.platform) && (
                 <div style={{
                   padding: "10px 14px",
                   borderRadius: 8,
@@ -1129,8 +1202,10 @@ export default function AnalysisPage() {
                     Instant publication: Your video and caption will be published directly to your connected <strong>{PLATFORM_LABELS[scheduleForm.platform]}</strong> account right now.
                   </p>
                 </div>
-              ) : (
-                /* Scheduled Date & Time if Schedule Mode */
+              )}
+
+              {/* Scheduled Date & Time if Schedule Mode */}
+              {scheduleMode === "schedule" && (
                 <div>
                   <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>
                     Scheduled Date & Time
@@ -1167,9 +1242,17 @@ export default function AnalysisPage() {
                 <button
                   type="submit"
                   className="btn btn-sm"
-                  disabled={submittingAction}
+                  disabled={submittingAction || !isPlatformConnected(scheduleForm.platform)}
+                  title={!isPlatformConnected(scheduleForm.platform) ? `Connect ${PLATFORM_LABELS[scheduleForm.platform]} account first` : ""}
                   style={
-                    scheduleMode === "now"
+                    !isPlatformConnected(scheduleForm.platform)
+                      ? {
+                          background: "rgba(255, 255, 255, 0.08)",
+                          color: "var(--text-muted)",
+                          border: "1px solid var(--border-subtle)",
+                          cursor: "not-allowed",
+                        }
+                      : scheduleMode === "now"
                       ? {
                           background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
                           color: "#fff",
@@ -1194,6 +1277,8 @@ export default function AnalysisPage() {
                       <ArrowPathIcon style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
                       {scheduleMode === "now" ? `Publishing to ${PLATFORM_LABELS[scheduleForm.platform]}...` : "Scheduling..."}
                     </>
+                  ) : !isPlatformConnected(scheduleForm.platform) ? (
+                    `Connect ${PLATFORM_LABELS[scheduleForm.platform]} to Publish`
                   ) : scheduleMode === "now" ? (
                     <>
                       <BoltIcon style={{ width: 14, height: 14 }} />

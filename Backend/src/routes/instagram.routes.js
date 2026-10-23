@@ -92,7 +92,10 @@ router.post("/publish", authenticate, async (req, res) => {
     if (projectId) {
       await prisma.videoProject.update({
         where: { id: projectId },
-        data: { status: "completed" },
+        data: {
+          status: "completed",
+          ...(result?.mediaId ? { instagramMediaId: result.mediaId } : {}),
+        },
       });
     }
 

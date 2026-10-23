@@ -29,6 +29,7 @@ export const getInstagramAuthUrl = (state) => {
   const scopes = [
     "instagram_business_basic",
     "instagram_business_content_publish",
+    "instagram_business_manage_insights",
   ];
 
   const params = new URLSearchParams({
@@ -278,3 +279,145 @@ export const disconnectInstagram = async (userId) => {
     },
   });
 };
+
+/**
+ * Step 5: Fetch live performance metrics for an Instagram media item (Reel/Post).
+ */
+export const getInstagramMediaAnalytics = async (user, mediaId) => {
+  if (!user || !user.instagramAccessToken || !mediaId) {
+    return null;
+  }
+
+  const token = decrypt(user.instagramAccessToken);
+
+  try {
+    // 1. Fetch direct media object metrics (available with instagram_business_basic)
+    const mediaUrl = `${INSTAGRAM_GRAPH_URL}/${mediaId}?` + new URLSearchParams({
+      fields: "id,caption,media_type,media_product_type,like_count,comments_count,permalink,timestamp",
+      access_token: token,
+    });
+
+    const mediaRes = await fetch(mediaUrl);
+    const mediaData = await mediaRes.json();
+
+    if (mediaData.error) {
+      console.warn("Instagram media lookup notice:", mediaData.error.message);
+      return null;
+    }
+
+    const stats = {
+      mediaId,
+      platform: "instagram",
+      views: 0,
+      reach: 0,
+      likes: Number(mediaData.like_count) || 0,
+      comments: Number(mediaData.comments_count) || 0,
+      saved: 0,
+      totalInteractions: (Number(mediaData.like_count) || 0) + (Number(mediaData.comments_count) || 0),
+      permalink: mediaData.permalink || null,
+      timestamp: mediaData.timestamp || null,
+      mediaProductType: mediaData.media_product_type || mediaData.media_type || "REELS",
+    };
+
+    // 2. Attempt fetching in-depth insights (plays, reach, impressions, saved)
+    try {
+      // For Reels, Instagram supports: reach, plays, total_interactions, saved (or views)
+      const insightsUrl = `${INSTAGRAM_GRAPH_URL}/${mediaId}/insights?` + new URLSearchParams({
+        metric: "reach,plays,total_interactions,saved",
+        access_token: token,
+      });
+
+      const insightsRes = await fetch(insightsUrl);
+      const insightsData = await insightsRes.json();
+
+      if (insightsData?.data && Array.isArray(insightsData.data)) {
+        insightsData.data.forEach((metricItem) => {
+          const val = metricItem.values?.[0]?.value ?? metricItem.total_value?.value ?? 0;
+          if (metricItem.name === "plays" || metricItem.name === "views") {
+            stats.views = Number(val) || 0;
+          } else if (metricItem.name === "reach") {
+            stats.reach = Number(val) || 0;
+          } else if (metricItem.name === "saved") {
+            stats.saved = Number(val) || 0;
+          } else if (metricItem.name === "total_interactions") {
+            stats.totalInteractions = Number(val) || stats.totalInteractions;
+          }
+        });
+      } else {
+        // Fallback metric set for non-reels or older API versions
+        const altUrl = `${INSTAGRAM_GRAPH_URL}/${mediaId}/insights?` + new URLSearchParams({
+          metric: "reach,impressions,saved",
+          access_token: token,
+        });
+        const altRes = await fetch(altUrl);
+        const altData = await altRes.json();
+        if (altData?.data && Array.isArray(altData.data)) {
+          altData.data.forEach((metricItem) => {
+            const val = metricItem.values?.[0]?.value ?? metricItem.total_value?.value ?? 0;
+            if (metricItem.name === "impressions" || metricItem.name === "reach") {
+              stats.reach = Math.max(stats.reach, Number(val) || 0);
+              if (stats.views === 0) stats.views = Number(val) || 0;
+            } else if (metricItem.name === "saved") {
+              stats.saved = Number(val) || 0;
+            }
+          });
+        }
+      }
+    } catch (insightsErr) {
+      console.warn("Instagram insights query notice (non-fatal):", insightsErr.message);
+    }
+
+    // If plays was 0 or not returned by insights, reach can serve as primary audience view metric
+    if (stats.views === 0 && stats.reach > 0) {
+      stats.views = stats.reach;
+    }
+
+    return stats;
+  } catch (err) {
+    console.warn("getInstagramMediaAnalytics error:", err.message);
+    return null;
+  }
+};
+
+/**
+ * Verify whether an Instagram post/reel is still active or has been deleted off Instagram.
+ */
+export const checkInstagramMediaStatus = async (user, mediaId) => {
+  if (!user || !user.instagramAccessToken || !mediaId) {
+    return { exists: false, isDeleted: false, reason: "missing_credentials" };
+  }
+
+  const token = decrypt(user.instagramAccessToken);
+
+  try {
+    const mediaUrl = `${INSTAGRAM_GRAPH_URL}/${mediaId}?` + new URLSearchParams({
+      fields: "id,permalink",
+      access_token: token,
+    });
+
+    const mediaRes = await fetch(mediaUrl);
+    const mediaData = await mediaRes.json();
+
+    if (mediaData.error) {
+      const msg = mediaData.error.message || "";
+      const code = mediaData.error.code;
+      const subcode = mediaData.error.error_subcode;
+      // Code 100 / subcode 33 or "does not exist" confirms media is deleted from Instagram
+      if (code === 100 || subcode === 33 || /does not exist|deleted|cannot be loaded/i.test(msg)) {
+        return { exists: false, isDeleted: true, status: "deleted" };
+      }
+      return { exists: false, isDeleted: false, error: msg };
+    }
+
+    return {
+      exists: true,
+      isDeleted: false,
+      status: "published",
+      permalink: mediaData.permalink || null,
+    };
+  } catch (err) {
+    console.warn("Instagram media status check error:", err.message);
+    return { exists: false, isDeleted: false, error: err.message };
+  }
+};
+

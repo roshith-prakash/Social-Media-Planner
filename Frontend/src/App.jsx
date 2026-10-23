@@ -19,13 +19,12 @@ import ProjectsPage from "./pages/app/ProjectsPage";
 import ProfilePage from "./pages/app/ProfilePage";
 import CalendarPage from "./pages/app/CalendarPage";
 import AnalyticsPage from "./pages/app/AnalyticsPage";
-
+import UploadsPage from "./pages/app/UploadsPage";
 
 import YouTubeLogin from "./pages/ConnectYoutube";
 import YouTubeSuccess from "./pages/YoutubeSuccess";
 import InstagramSuccess from "./pages/InstagramSuccess";
 import UploadVideoFromCDN from "./pages/YoutubeUpload";
-import Twitter from "./pages/Twitter";
 import LinkedinLoginPage from "./pages/LinkedinLoginPage";
 
 export default function App() {
@@ -57,13 +56,12 @@ export default function App() {
             <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
-            {/* ── Social OAuth Callbacks & Pages ───────────────────── */}
+            {/* ── Social OAuth Callbacks ─────────────────────────────── */}
             <Route path="/youtube/success" element={<YouTubeSuccess />} />
             <Route path="/instagram/success" element={<InstagramSuccess />} />
-            <Route path="/twitter" element={<PrivateRoute><Twitter /></PrivateRoute>} />
             <Route path="/linkedin" element={<PrivateRoute><LinkedinLoginPage /></PrivateRoute>} />
 
-            {/* ── Onboarding (after signup) ────────────────────────── */}
+            {/* ── Onboarding (after signup) ─────────────────────────── */}
             <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
 
             {/* ── App Routes (authenticated) ────────────────────────── */}
@@ -72,15 +70,14 @@ export default function App() {
               <Route path="upload" element={<UploadPage />} />
               <Route path="projects" element={<ProjectsPage />} />
               <Route path="calendar" element={<CalendarPage />} />
+              <Route path="uploads" element={<UploadsPage />} />
               <Route path="analysis/:id" element={<AnalysisPage />} />
               <Route path="analytics/:projectId" element={<AnalyticsPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="connect-youtube" element={<YouTubeLogin />} />
               <Route path="youtube-upload" element={<UploadVideoFromCDN />} />
-              <Route path="twitter" element={<Twitter />} />
               <Route path="linkedin" element={<LinkedinLoginPage />} />
             </Route>
-
 
             {/* ── Fallback ─────────────────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />

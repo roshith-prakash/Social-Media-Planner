@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { getScheduledPosts, cancelScheduledPost, schedulePost, publishNow } from "../../api/scheduleApi";
 import { getMyProjects } from "../../api/videoApi";
+import { useUser } from "../../context/UserContext";
 import {
   CalendarDaysIcon,
   PlusIcon,
@@ -16,6 +17,7 @@ import {
   XMarkIcon,
   BoltIcon,
   ArrowPathIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
@@ -38,19 +40,34 @@ const PLATFORM_COLORS = {
 
 export default function CalendarPage() {
   const navigate = useNavigate();
+  const { dbUser } = useUser();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [modalMode, setModalMode] = useState("now"); // "now" | "schedule"
   const [projects, setProjects] = useState([]);
+
+  // Connected accounts check
+  const isYouTubeConnected = Boolean(dbUser?.youtubeAccessToken || dbUser?.youtubeChannelName || dbUser?.youtubeChannelId);
+  const isInstagramConnected = Boolean(dbUser?.instagramAccessToken || dbUser?.instagramUsername || dbUser?.instagramBusinessId);
+
+  const isPlatformConnected = (plat) => {
+    if (plat === "youtube") return isYouTubeConnected;
+    if (plat === "instagram") return isInstagramConnected;
+    return false;
+  };
+
   const [formState, setFormState] = useState({
     projectId: "",
-    platform: "youtube",
+    platform: isYouTubeConnected ? "youtube" : isInstagramConnected ? "instagram" : "youtube",
     scheduledAt: "",
     content: "",
   });
-  const [submitting, setSubmitting] = useState(false);
+  // publishingId = the specific post.rawId currently being published (null = none)
+  const [publishingId, setPublishingId] = useState(null);
+  // formSubmitting = the new-post modal form is in-flight
+  const [formSubmitting, setFormSubmitting] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -132,11 +149,16 @@ export default function CalendarPage() {
     }
   };
 
+
   const handlePublishNow = async (event) => {
     if (!event.projectId) return toast.error("Missing project ID");
+    if (!isPlatformConnected(event.platform)) {
+      return toast.error(`Please connect your ${event.platform.toUpperCase()} account in Profile before publishing.`);
+    }
     if (!window.confirm(`Publish this post immediately to ${event.platform.toUpperCase()}?`)) return;
 
-    setSubmitting(true);
+    // Only lock this specific post — not others
+    setPublishingId(event.rawId);
     try {
       const res = await publishNow({
         projectId: event.projectId,
@@ -152,12 +174,15 @@ export default function CalendarPage() {
     } catch (err) {
       toast.error(err.response?.data?.message || err.response?.data?.error || err.message || "Publishing failed");
     } finally {
-      setSubmitting(false);
+      setPublishingId(null);
     }
   };
 
   const handleCreateSchedule = async (e) => {
     e.preventDefault();
+    if (!isPlatformConnected(formState.platform)) {
+      return toast.error(`Please connect your ${formState.platform.toUpperCase()} account in Profile before publishing.`);
+    }
     if (!formState.projectId) {
       return toast.error("Please select a video project");
     }
@@ -165,7 +190,7 @@ export default function CalendarPage() {
       return toast.error("Please select a scheduled date and time");
     }
 
-    setSubmitting(true);
+    setFormSubmitting(true);
     try {
       if (modalMode === "now") {
         const res = await publishNow({
@@ -189,7 +214,7 @@ export default function CalendarPage() {
     } catch (err) {
       toast.error(err.response?.data?.message || err.response?.data?.error || err.message || "Action failed");
     } finally {
-      setSubmitting(false);
+      setFormSubmitting(false);
     }
   };
 
@@ -359,25 +384,44 @@ export default function CalendarPage() {
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
                     className="btn btn-sm"
-                    style={{
-                      background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
-                      color: "#fff",
-                      border: "none",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontWeight: 600,
-                    }}
+                    style={
+                      !isPlatformConnected(selectedEvent.platform)
+                        ? {
+                            background: "rgba(255, 255, 255, 0.08)",
+                            color: "var(--text-muted)",
+                            border: "1px solid var(--border-subtle)",
+                            cursor: "not-allowed",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontWeight: 600,
+                          }
+                        : {
+                            background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
+                            color: "#fff",
+                            border: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontWeight: 600,
+                          }
+                    }
                     onClick={() => handlePublishNow(selectedEvent)}
-                    disabled={submitting}
+                    disabled={publishingId === selectedEvent.rawId || !isPlatformConnected(selectedEvent.platform)}
+                    title={!isPlatformConnected(selectedEvent.platform) ? `Connect ${selectedEvent.platform.toUpperCase()} in Profile to publish` : ""}
                   >
                     <BoltIcon style={{ width: 14, height: 14 }} />
-                    {submitting ? "Publishing..." : "Publish Now"}
+                    {publishingId === selectedEvent.rawId
+                      ? "Publishing..."
+                      : !isPlatformConnected(selectedEvent.platform)
+                      ? `Connect ${selectedEvent.platform.toUpperCase()} to Publish`
+                      : "Publish Now"}
                   </button>
                   <button
                     className="btn btn-ghost btn-sm"
                     style={{ color: "#f87171", border: "1px solid rgba(248, 113, 113, 0.3)" }}
                     onClick={() => handleCancelPost(selectedEvent.rawId)}
+                    disabled={publishingId === selectedEvent.rawId}
                   >
                     <TrashIcon style={{ width: 14, height: 14 }} />
                     Cancel
@@ -518,31 +562,82 @@ export default function CalendarPage() {
                   Target Platform
                 </label>
                 <div style={{ display: "flex", gap: 10 }}>
-                  {["youtube", "instagram"].map((p) => (
-                    <button
-                      type="button"
-                      key={p}
-                      onClick={() => setFormState({ ...formState, platform: p })}
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        fontWeight: 600,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        background: formState.platform === p ? `${PLATFORM_COLORS[p]}25` : "rgba(255,255,255,0.05)",
-                        border: `1px solid ${formState.platform === p ? PLATFORM_COLORS[p] : "rgba(255,255,255,0.1)"}`,
-                        color: formState.platform === p ? PLATFORM_COLORS[p] : "var(--text-secondary)",
-                      }}
-                    >
-                      {p.charAt(0).toUpperCase() + p.slice(1)}
-                    </button>
-                  ))}
+                  {["youtube", "instagram"].map((p) => {
+                    const connected = isPlatformConnected(p);
+                    const isSelected = formState.platform === p;
+                    return (
+                      <button
+                        type="button"
+                        key={p}
+                        onClick={() => setFormState({ ...formState, platform: p })}
+                        style={{
+                          flex: 1,
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: "pointer",
+                          background: isSelected ? `${PLATFORM_COLORS[p]}25` : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${isSelected ? PLATFORM_COLORS[p] : "rgba(255,255,255,0.08)"}`,
+                          color: isSelected ? PLATFORM_COLORS[p] : "var(--text-secondary)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 6,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span>{p.charAt(0).toUpperCase() + p.slice(1)}</span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            background: connected ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                            color: connected ? "#4ade80" : "#f87171",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {connected ? "✓ Connected" : "✕ Not Connected"}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
+              {/* Account Connection Warning if disconnected */}
+              {!isPlatformConnected(formState.platform) && (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 8,
+                    background: "rgba(239, 68, 68, 0.08)",
+                    border: "1px solid rgba(239, 68, 68, 0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <InformationCircleIcon style={{ width: 18, height: 18, color: "#f87171", flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: "#f87171" }}>
+                      Your <strong>{formState.platform.toUpperCase()}</strong> account is not connected.
+                    </span>
+                  </div>
+                  <Link
+                    to="/app/profile"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: 11, padding: "4px 10px", flexShrink: 0, textDecoration: "none" }}
+                  >
+                    Connect in Profile
+                  </Link>
+                </div>
+              )}
+
               {/* Informational Callout if Post Now */}
-              {modalMode === "now" ? (
+              {modalMode === "now" && isPlatformConnected(formState.platform) && (
                 <div style={{
                   padding: "10px 14px",
                   borderRadius: 8,
@@ -557,8 +652,10 @@ export default function CalendarPage() {
                     Instant publication: Video will be published immediately to your connected <strong>{formState.platform.toUpperCase()}</strong> account.
                   </p>
                 </div>
-              ) : (
-                /* Scheduled Time if Schedule Mode */
+              )}
+
+              {/* Scheduled Time if Schedule Mode */}
+              {modalMode === "schedule" && (
                 <div>
                   <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
                     Publish Date & Time
@@ -594,9 +691,17 @@ export default function CalendarPage() {
                 <button
                   type="submit"
                   className="btn btn-sm"
-                  disabled={submitting}
+                  disabled={formSubmitting || !isPlatformConnected(formState.platform)}
+                  title={!isPlatformConnected(formState.platform) ? `Connect ${formState.platform.toUpperCase()} account first` : ""}
                   style={
-                    modalMode === "now"
+                    !isPlatformConnected(formState.platform)
+                      ? {
+                          background: "rgba(255, 255, 255, 0.08)",
+                          color: "var(--text-muted)",
+                          border: "1px solid var(--border-subtle)",
+                          cursor: "not-allowed",
+                        }
+                      : modalMode === "now"
                       ? {
                           background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
                           color: "#fff",
@@ -616,11 +721,13 @@ export default function CalendarPage() {
                         }
                   }
                 >
-                  {submitting ? (
+                  {formSubmitting ? (
                     <>
                       <ArrowPathIcon style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
                       {modalMode === "now" ? `Publishing to ${formState.platform.toUpperCase()}...` : "Scheduling..."}
                     </>
+                  ) : !isPlatformConnected(formState.platform) ? (
+                    `Connect ${formState.platform.toUpperCase()} to Publish`
                   ) : modalMode === "now" ? (
                     <>
                       <BoltIcon style={{ width: 14, height: 14 }} />

@@ -43,6 +43,7 @@ if (agenda) {
 
         console.log(`🚀 [Schedule] Executing publish for post ${post.id} on ${platform}...`);
 
+        let externalId = null;
         if (platform === "youtube") {
           const uploadResult = await uploadVideoFromCDN(
             post.user,
@@ -51,13 +52,14 @@ if (agenda) {
             text
           );
           if (uploadResult?.id) {
+            externalId = uploadResult.id;
             await prisma.videoProject.update({
               where: { id: post.projectId },
-              data: { youtubeVideoId: uploadResult.id },
+              data: { youtubeVideoId: uploadResult.id, status: "completed" },
             });
           }
         } else if (platform === "instagram") {
-          await uploadVideoToInstagram(
+          const igResult = await uploadVideoToInstagram(
             post.user,
             post.project.cloudinaryUrl,
             text,
@@ -67,11 +69,18 @@ if (agenda) {
               } catch (_) {}
             }
           );
+          if (igResult?.mediaId) {
+            externalId = igResult.mediaId;
+            await prisma.videoProject.update({
+              where: { id: post.projectId },
+              data: { instagramMediaId: igResult.mediaId, status: "completed" },
+            });
+          }
         }
 
         await prisma.scheduledPost.update({
           where: { id: post.id },
-          data: { status: "published", errorMsg: null },
+          data: { status: "published", externalPostId: externalId, errorMsg: null },
         });
         console.log(`✅ [Schedule] Post ${post.id} successfully published to ${platform}`);
       } catch (err) {

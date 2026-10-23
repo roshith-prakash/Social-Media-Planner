@@ -40,10 +40,10 @@ model User {
   instagramUsername    String?
   instagramName        String?
   instagramProfilePic  String?
-  instagramAccessToken String?   // Encrypted long-lived token
+  instagramAccessToken String? // Encrypted long-lived token
   instagramTokenExpiry DateTime?
-  instagramBusinessId  String?   // Instagram Business/Creator Account ID
-  instagramPageId      String?   // Connected Facebook Page ID
+  instagramBusinessId  String? // Instagram Business/Creator Account ID
+  instagramPageId      String? // Connected Facebook Page ID
 
   projects       VideoProject[]
   drafts         SavedDraft[]
@@ -67,6 +67,7 @@ model VideoProject {
   status             String   @default("pending")
   errorMessage       String?
   youtubeVideoId     String?
+  instagramMediaId   String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -111,16 +112,16 @@ model SavedDraft {
   userId String @db.ObjectId
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  analysisId String @db.ObjectId
-  projectId  String @db.ObjectId
+  analysisId String       @db.ObjectId
+  projectId  String       @db.ObjectId
   project    VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   platform        String // youtube | instagram
   contentType     String // title | description | caption | reels_script | carousel | hashtags
-  label           String?  @default("")
-  originalContent String?  @default("")
+  label           String? @default("")
+  originalContent String? @default("")
   editedContent   String
-  isFavorited     Boolean  @default(false)
+  isFavorited     Boolean @default(false)
 
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -140,19 +141,19 @@ model AnalysisCache {
 // ─── ScheduledPost ────────────────────────────────────────────────────────────
 
 model ScheduledPost {
-  id          String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String        @db.ObjectId
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId   String        @db.ObjectId
-  project     VideoProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  draftId     String?       @db.ObjectId
-  draft       SavedDraft?   @relation(fields: [draftId], references: [id], onDelete: SetNull)
-  platform    String        // youtube | instagram
-  content     String?
-  scheduledAt DateTime
-  status      String        @default("pending") // pending | published | failed | cancelled
-  errorMsg    String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String       @db.ObjectId
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId      String       @db.ObjectId
+  project        VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  draftId        String?      @db.ObjectId
+  draft          SavedDraft?  @relation(fields: [draftId], references: [id], onDelete: SetNull)
+  platform       String // youtube | instagram
+  content        String?
+  scheduledAt    DateTime
+  status         String       @default("pending") // pending | published | failed | cancelled
+  externalPostId String?
+  errorMsg       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
-

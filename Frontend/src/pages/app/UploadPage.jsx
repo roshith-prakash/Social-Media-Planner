@@ -11,12 +11,166 @@ import {
   VideoCameraIcon,
   CheckCircleIcon,
   XMarkIcon,
+  PlayIcon,
+  PauseIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
 const ACCEPTED_TYPES = ["video/mp4", "video/mov", "video/avi", "video/webm", "video/quicktime", "video/x-msvideo"];
-const MAX_SIZE_MB = 500;
+const MAX_SIZE_MB = 20;
 
+// ── Upload Progress Bar Component ────────────────────────────────────────────
+function UploadProgressUI({ pct }) {
+  const radius = 54;
+  const circ = 2 * Math.PI * radius;
+  const offset = circ - (pct / 100) * circ;
+
+  return (
+    <div className="glass-card animate-scaleIn" style={{ padding: "48px 32px", textAlign: "center" }}>
+      {/* Circular progress ring */}
+      <div style={{ position: "relative", width: 140, height: 140, margin: "0 auto 28px" }}>
+        <svg width="140" height="140" style={{ transform: "rotate(-90deg)" }}>
+          {/* Track */}
+          <circle cx="70" cy="70" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+          {/* Progress */}
+          <circle
+            cx="70" cy="70" r={radius} fill="none"
+            stroke="url(#uploadGrad)" strokeWidth="10"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            style={{ transition: "stroke-dashoffset 0.4s ease" }}
+          />
+          <defs>
+            <linearGradient id="uploadGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#6366f1" />
+              <stop offset="100%" stopColor="#8b5cf6" />
+            </linearGradient>
+          </defs>
+        </svg>
+        {/* Centre text */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        }}>
+          <CloudArrowUpIcon style={{ width: 24, height: 24, color: "var(--text-accent)", marginBottom: 4 }} />
+          <span style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)" }}>{pct}%</span>
+        </div>
+      </div>
+
+      <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Uploading to Cloud…</h2>
+      <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20 }}>
+        Securely uploading your video to Cloudinary CDN
+      </p>
+
+      {/* Linear bar */}
+      <div style={{
+        background: "rgba(255,255,255,0.06)", borderRadius: 99, height: 6, overflow: "hidden", maxWidth: 360, margin: "0 auto",
+      }}>
+        <div style={{
+          height: "100%", borderRadius: 99,
+          background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+          width: `${pct}%`, transition: "width 0.3s ease",
+          boxShadow: "0 0 12px rgba(99,102,241,0.5)",
+        }} />
+      </div>
+
+      {/* Steps indicator */}
+      <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 28 }}>
+        {[
+          { label: "Compressing", done: pct >= 20 },
+          { label: "Uploading", done: pct >= 70 },
+          { label: "Processing", done: pct >= 100 },
+        ].map(({ label, done }) => (
+          <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: "50%",
+              background: done ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "rgba(255,255,255,0.06)",
+              border: done ? "none" : "1px solid var(--border-subtle)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "all 0.3s ease",
+              boxShadow: done ? "0 0 10px rgba(99,102,241,0.4)" : "none",
+            }}>
+              {done
+                ? <CheckCircleIcon style={{ width: 14, height: 14, color: "#fff" }} />
+                : <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
+              }
+            </div>
+            <span style={{ fontSize: 11, color: done ? "var(--text-accent)" : "var(--text-muted)", fontWeight: 600 }}>
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Video Player Component ────────────────────────────────────────────────────
+function VideoPlayer({ src, title }) {
+  const videoRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (playing) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
+    }
+    setPlaying(!playing);
+  };
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onEnded = () => setPlaying(false);
+    v.addEventListener("ended", onEnded);
+    return () => v.removeEventListener("ended", onEnded);
+  }, []);
+
+  return (
+    <div style={{
+      background: "rgba(0,0,0,0.5)", borderRadius: 16, overflow: "hidden",
+      border: "1px solid var(--border-subtle)", marginBottom: 20, position: "relative",
+    }}>
+      <video
+        ref={videoRef}
+        src={src}
+        style={{ width: "100%", maxHeight: 320, display: "block", objectFit: "contain", background: "#000" }}
+        preload="metadata"
+        onClick={togglePlay}
+      />
+      {/* Overlay play/pause */}
+      <button
+        onClick={togglePlay}
+        style={{
+          position: "absolute", bottom: 12, left: 12,
+          width: 36, height: 36, borderRadius: "50%",
+          background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.2)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", transition: "background 0.2s",
+        }}
+      >
+        {playing
+          ? <PauseIcon style={{ width: 16, height: 16, color: "#fff" }} />
+          : <PlayIcon style={{ width: 16, height: 16, color: "#fff" }} />
+        }
+      </button>
+      {title && (
+        <div style={{
+          position: "absolute", bottom: 12, right: 12,
+          background: "rgba(0,0,0,0.7)", borderRadius: 6,
+          padding: "2px 8px", fontSize: 11, color: "rgba(255,255,255,0.7)",
+        }}>
+          {title}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function UploadPage() {
   const navigate = useNavigate();
   const { dbUser } = useUser();
@@ -30,6 +184,15 @@ export default function UploadPage() {
   const [error, setError] = useState(null);
   const [agentStatuses, setAgentStatuses] = useState({});
   const [videoPrepStatus, setVideoPrepStatus] = useState("ingesting");
+  // Uploaded cloud URL — used for in-app video playback after upload
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState(null);
+
+  // Revoke object URL on cleanup (memory leak fix)
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
 
   const validateFile = (f) => {
     if (!ACCEPTED_TYPES.includes(f.type)) {
@@ -44,6 +207,7 @@ export default function UploadPage() {
   const handleFile = (f) => {
     const err = validateFile(f);
     if (err) { toast.error(err); return; }
+    if (preview) URL.revokeObjectURL(preview);
     setFile(f);
     setPreview(URL.createObjectURL(f));
     setError(null);
@@ -74,14 +238,16 @@ export default function UploadPage() {
       const xhr = new XMLHttpRequest();
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 95);
+          // Map 0–100% of actual upload to 20–95% of displayed progress
+          const pct = Math.round(20 + (e.loaded / e.total) * 75);
           setUploadPct(pct);
         }
       });
       xhr.addEventListener("load", () => {
-        if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
-        else {
-          console.error("Cloudinary error:", xhr.responseText);
+        if (xhr.status === 200) {
+          setUploadPct(100);
+          resolve(JSON.parse(xhr.responseText));
+        } else {
           reject(new Error("Cloudinary upload failed: " + xhr.responseText));
         }
       });
@@ -115,7 +281,7 @@ export default function UploadPage() {
 
           if (attempts >= maxAttempts) {
             clearInterval(interval);
-            reject(new Error("Analysis is taking longer than expected. You can check its progress on the Projects page."));
+            reject(new Error("Analysis is taking longer than expected. Check progress on the Projects page."));
           }
         } catch (pollErr) {
           console.warn("Polling error:", pollErr);
@@ -133,28 +299,20 @@ export default function UploadPage() {
       projectId,
       (eventType, data) => {
         if (eventType === "agent_start") {
-          setAgentStatuses((prev) => ({
-            ...prev,
-            [data.agent]: { status: "running" },
-          }));
+          setAgentStatuses((prev) => ({ ...prev, [data.agent]: { status: "running" } }));
         } else if (eventType === "agent_done") {
-          setAgentStatuses((prev) => ({
-            ...prev,
-            [data.agent]: { status: data.status, elapsed: data.elapsed },
-          }));
+          setAgentStatuses((prev) => ({ ...prev, [data.agent]: { status: data.status, elapsed: data.elapsed } }));
         } else if (eventType === "video_ready") {
           setVideoPrepStatus("ready");
         } else if (eventType === "cache_hit") {
           toast.success("⚡ Cache hit! Returning instant analysis.");
         }
       },
-      () => {
-        setStage("done");
-      }
+      () => { setStage("done"); }
     );
   };
 
-  // If redirected with ?projectId=..., auto-resume or trigger analysis
+  // If redirected with ?projectId=..., auto-resume analysis
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const existingProjectId = params.get("projectId");
@@ -162,7 +320,6 @@ export default function UploadPage() {
 
     let isMounted = true;
     setStage("analyzing");
-
     const unsubscribe = startSSETracking(existingProjectId);
 
     const runExisting = async () => {
@@ -172,9 +329,7 @@ export default function UploadPage() {
         if (isMounted) {
           unsubscribe?.();
           setStage("done");
-          setTimeout(() => {
-            navigate(`/app/analysis/${analysisId}`);
-          }, 1000);
+          setTimeout(() => navigate(`/app/analysis/${analysisId}`), 1000);
         }
       } catch (err) {
         if (isMounted) {
@@ -187,10 +342,7 @@ export default function UploadPage() {
     };
 
     runExisting();
-    return () => {
-      isMounted = false;
-      unsubscribe?.();
-    };
+    return () => { isMounted = false; unsubscribe?.(); };
   }, []);
 
   const handleAnalyze = async () => {
@@ -198,6 +350,7 @@ export default function UploadPage() {
     setError(null);
     setAgentStatuses({});
     setVideoPrepStatus("ingesting");
+    setUploadedVideoUrl(null);
 
     let unsubscribeSSE = null;
 
@@ -208,7 +361,9 @@ export default function UploadPage() {
       const sigRes = await getUploadSignature();
       const sigData = sigRes.data.data;
       const cloudResult = await uploadToCloudinary(file, sigData);
-      setUploadPct(100);
+
+      // Save cloud URL so the user can watch the uploaded video
+      setUploadedVideoUrl(cloudResult.secure_url);
 
       // Create project record
       const projectRes = await createVideoProject({
@@ -222,21 +377,16 @@ export default function UploadPage() {
       });
       const projectId = projectRes.data.data.project.id;
 
-      // Stage 2: AI Analysis with SSE real-time streaming
+      // Stage 2: AI Analysis
       setStage("analyzing");
       unsubscribeSSE = startSSETracking(projectId);
-
       await analyzeVideo(projectId);
-
       const analysisId = await pollForCompletion(projectId);
       unsubscribeSSE?.();
 
       // Stage 3: Done
       setStage("done");
-
-      setTimeout(() => {
-        navigate(`/app/analysis/${analysisId}`);
-      }, 1000);
+      setTimeout(() => navigate(`/app/analysis/${analysisId}`), 1200);
     } catch (err) {
       unsubscribeSSE?.();
       setStage(null);
@@ -244,6 +394,8 @@ export default function UploadPage() {
       toast.error(err.message || "Analysis failed");
     }
   };
+
+  const fileSizeMB = file ? (file.size / (1024 * 1024)).toFixed(1) : 0;
 
   return (
     <div style={{ padding: "40px 32px", maxWidth: 860, margin: "0 auto" }}>
@@ -253,7 +405,7 @@ export default function UploadPage() {
           Analyze Your Video
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)" }}>
-          Upload a video and get a complete AI-powered strategy across YouTube and Instagram.
+          Upload a video (up to {MAX_SIZE_MB}MB) and get a complete AI-powered strategy across YouTube and Instagram.
         </p>
         {dbUser?.totalAnalyses !== undefined && (
           <div className="badge badge-brand" style={{ marginTop: 10 }}>
@@ -263,9 +415,10 @@ export default function UploadPage() {
         )}
       </div>
 
-      {/* Upload Zone */}
+      {/* ── Idle state: drop zone + video preview ── */}
       {!stage && (
         <>
+          {/* Drop zone */}
           <div
             id="video-dropzone"
             onDrop={onDrop}
@@ -275,7 +428,7 @@ export default function UploadPage() {
             style={{
               border: `2px dashed ${dragOver ? "var(--brand-500)" : file ? "rgba(99,102,241,0.4)" : "var(--border-default)"}`,
               borderRadius: 20,
-              padding: file ? "24px" : "60px 32px",
+              padding: file ? "20px" : "56px 32px",
               textAlign: "center",
               cursor: file ? "default" : "pointer",
               background: dragOver ? "rgba(99,102,241,0.06)" : "rgba(13,13,31,0.5)",
@@ -299,8 +452,7 @@ export default function UploadPage() {
                   background: dragOver ? "var(--gradient-brand)" : "rgba(99,102,241,0.1)",
                   border: `1px solid ${dragOver ? "transparent" : "rgba(99,102,241,0.2)"}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  margin: "0 auto 20px",
-                  transition: "all 0.3s ease",
+                  margin: "0 auto 20px", transition: "all 0.3s ease",
                   animation: "float 4s ease-in-out infinite",
                 }}>
                   <CloudArrowUpIcon style={{ width: 36, height: 36, color: dragOver ? "#fff" : "var(--text-accent)" }} />
@@ -309,7 +461,7 @@ export default function UploadPage() {
                   {dragOver ? "Drop it!" : "Drop your video here"}
                 </h3>
                 <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16 }}>
-                  or click to browse · MP4, MOV, AVI, WebM · up to 500MB
+                  or click to browse · MP4, MOV, AVI, WebM · up to {MAX_SIZE_MB}MB
                 </p>
                 <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
                   <VideoCameraIcon style={{ width: 16, height: 16 }} />
@@ -317,29 +469,43 @@ export default function UploadPage() {
                 </button>
               </>
             ) : (
-              <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-                {preview && (
-                  <video src={preview} style={{ width: 160, height: 100, objectFit: "cover", borderRadius: 10, flexShrink: 0 }} muted />
-                )}
-                <div style={{ flex: 1, textAlign: "left" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <CheckCircleIcon style={{ width: 18, height: 18, color: "#4ade80" }} />
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#4ade80" }}>Video selected</span>
+              /* File selected — show preview + metadata */
+              <div>
+                {/* In-app video player */}
+                <VideoPlayer src={preview} title={file.name} />
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <CheckCircleIcon style={{ width: 18, height: 18, color: "#4ade80", flexShrink: 0 }} />
+                    <div style={{ textAlign: "left" }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{file.name}</p>
+                      <div style={{ display: "flex", gap: 10 }}>
+                        <span style={{
+                          fontSize: 11, padding: "2px 8px", borderRadius: 99,
+                          background: fileSizeMB > MAX_SIZE_MB * 0.8 ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
+                          color: fileSizeMB > MAX_SIZE_MB * 0.8 ? "#f87171" : "#4ade80",
+                          fontWeight: 700,
+                        }}>
+                          {fileSizeMB} MB / {MAX_SIZE_MB}MB
+                        </span>
+                        <span style={{
+                          fontSize: 11, padding: "2px 8px", borderRadius: 99,
+                          background: "rgba(99,102,241,0.12)", color: "var(--text-accent)", fontWeight: 700,
+                        }}>
+                          {file.type.split("/")[1]?.toUpperCase() || "VIDEO"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: "var(--text-primary)" }}>
-                    {file.name}
-                  </p>
-                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                    {(file.size / (1024 * 1024)).toFixed(1)} MB · {file.type.split("/")[1]?.toUpperCase() || "MP4"}
-                  </p>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={(e) => { e.stopPropagation(); URL.revokeObjectURL(preview); setFile(null); setPreview(null); }}
+                    style={{ flexShrink: 0, color: "#f87171" }}
+                  >
+                    <XMarkIcon style={{ width: 16, height: 16 }} />
+                    Remove
+                  </button>
                 </div>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={(e) => { e.stopPropagation(); setFile(null); setPreview(null); }}
-                  style={{ flexShrink: 0 }}
-                >
-                  <XMarkIcon style={{ width: 16, height: 16 }} />
-                </button>
               </div>
             )}
           </div>
@@ -386,32 +552,21 @@ export default function UploadPage() {
         </>
       )}
 
-      {/* Stage: Uploading to Cloudinary */}
-      {stage === "uploading" && (
-        <div className="glass-card animate-scaleIn" style={{ padding: 48, textAlign: "center" }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: 20, background: "var(--gradient-brand)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 20px", boxShadow: "var(--glow-brand)",
-          }}>
-            <CloudArrowUpIcon style={{ width: 36, height: 36, color: "#fff", animation: "bounce 2s infinite" }} />
+      {/* ── Stage: Uploading to Cloudinary ── */}
+      {stage === "uploading" && <UploadProgressUI pct={uploadPct} />}
+
+      {/* ── Uploaded video viewer (shows while analyzing) ── */}
+      {(stage === "analyzing" || stage === "done") && uploadedVideoUrl && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <CheckCircleIcon style={{ width: 16, height: 16, color: "#4ade80" }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#4ade80" }}>Video uploaded successfully</span>
           </div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
-            Uploading Video to Cloud...
-          </h2>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 24 }}>
-            Direct secure upload to Cloudinary CDN ({uploadPct}%)
-          </p>
-          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 99, height: 8, overflow: "hidden", maxWidth: 400, margin: "0 auto" }}>
-            <div style={{
-              height: "100%", borderRadius: 99, background: "var(--gradient-brand)",
-              width: `${uploadPct}%`, transition: "width 0.3s ease",
-            }} />
-          </div>
+          <VideoPlayer src={uploadedVideoUrl} title={title || file?.name} />
         </div>
       )}
 
-      {/* Stage: Analyzing with 7 Real-time Agents */}
+      {/* ── Stage: Analyzing with 7 Real-time Agents ── */}
       {(stage === "analyzing" || stage === "done") && (
         <AgentProgressTracker
           agentStatuses={agentStatuses}

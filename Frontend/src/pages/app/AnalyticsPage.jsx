@@ -5,21 +5,20 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
 } from "recharts";
 import {
-  ChartBarIcon,
   EyeIcon,
   ClockIcon,
   HandThumbUpIcon,
   SparklesIcon,
-  ArrowTrendingUpIcon,
   ArrowLeftIcon,
+  ChatBubbleBottomCenterTextIcon,
+  InformationCircleIcon,
+  ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
@@ -47,7 +46,7 @@ export default function AnalyticsPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "70vh" }}>
         <div style={{ textAlign: "center" }}>
           <SparklesIcon style={{ width: 44, height: 44, color: "var(--text-accent)", animation: "spin-slow 3s linear infinite", margin: "0 auto 16px" }} />
-          <p style={{ color: "var(--text-secondary)" }}>Loading post-publish analytics...</p>
+          <p style={{ color: "var(--text-secondary)" }}>Loading post analytics...</p>
         </div>
       </div>
     );
@@ -62,12 +61,22 @@ export default function AnalyticsPage() {
     );
   }
 
-  const { metrics, chartData, title, duration, platforms, youtubeVideoId } = data;
+  const {
+    metrics,
+    chartData,
+    title,
+    duration,
+    platforms,
+    youtubeVideoId,
+    instagramMediaId,
+    isPublished,
+    platformBreakdown,
+  } = data;
 
   return (
     <div style={{ padding: "32px", maxWidth: 1100, margin: "0 auto" }}>
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <Link to="/app/projects" style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}>
             <ArrowLeftIcon style={{ width: 14, height: 14 }} /> Back to Projects
@@ -82,29 +91,66 @@ export default function AnalyticsPage() {
               {title || "Project Analytics"}
             </h1>
             <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0 }}>
-              Live metrics, audience retention, and cross-platform performance tracking.
+              Live real-time metrics, audience engagement, and platform performance.
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 8 }}>
-            {youtubeVideoId ? (
-              <span className="badge badge-success">✓ Synced with YouTube API</span>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {youtubeVideoId && instagramMediaId ? (
+              <span className="badge badge-success">✓ Synced: YouTube & Instagram</span>
+            ) : youtubeVideoId ? (
+              <span className="badge badge-success">✓ Synced: YouTube API</span>
+            ) : instagramMediaId ? (
+              <span className="badge badge-success" style={{ background: "rgba(225, 48, 108, 0.15)", color: "#E1306C", borderColor: "rgba(225, 48, 108, 0.3)" }}>
+                ✓ Synced: Instagram Graph API
+              </span>
             ) : (
-              <span className="badge badge-muted">Native Analytics Baseline</span>
+              <span className="badge badge-muted">Not Published Yet</span>
             )}
           </div>
         </div>
       </div>
 
+      {/* Unpublished Notice Banner */}
+      {!isPublished && (
+        <div
+          className="glass-card animate-fadeInUp"
+          style={{
+            padding: "16px 20px",
+            marginBottom: 24,
+            borderLeft: "4px solid var(--brand-500)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <InformationCircleIcon style={{ width: 24, height: 24, color: "var(--text-accent)", flexShrink: 0 }} />
+            <div>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>This video project has not been published yet.</p>
+              <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>
+                Publish or schedule this post to start receiving live real-time views, likes, and engagement metrics.
+              </p>
+            </div>
+          </div>
+          <Link to={`/app/analysis/${projectId}`} className="btn btn-primary btn-sm">
+            Publish or Schedule Post
+          </Link>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
           gap: 16,
           marginBottom: 32,
         }}
       >
+        {/* Total Views */}
         <div className="glass-card animate-fadeInUp" style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Total Views</span>
@@ -112,12 +158,19 @@ export default function AnalyticsPage() {
               <EyeIcon style={{ width: 18, height: 18, color: "var(--text-accent)" }} />
             </div>
           </div>
-          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>{metrics.totalViews.toLocaleString()}</p>
-          <span style={{ fontSize: 12, color: "#4ade80", display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-            <ArrowTrendingUpIcon style={{ width: 13, height: 13 }} /> +12% this week
+          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>
+            {metrics?.totalViews != null ? metrics.totalViews.toLocaleString() : 0}
+          </p>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6, display: "block" }}>
+            {isPublished
+              ? metrics?.reach > 0
+                ? `${metrics.reach.toLocaleString()} total audience reach`
+                : "Real-time cross-platform count"
+              : "Awaiting publication"}
           </span>
         </div>
 
+        {/* Watch Time / Duration */}
         <div className="glass-card animate-fadeInUp" style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Watch Time</span>
@@ -125,38 +178,134 @@ export default function AnalyticsPage() {
               <ClockIcon style={{ width: 18, height: 18, color: "#c084fc" }} />
             </div>
           </div>
-          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>{metrics.estimatedMinutesWatched} min</p>
-          <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4, display: "block" }}>
-            Avg duration: {Math.round(duration || 0)}s
+          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>
+            {metrics?.estimatedMinutesWatched != null ? `${metrics.estimatedMinutesWatched} min` : "0 min"}
+          </p>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6, display: "block" }}>
+            {metrics?.averageViewDuration > 0
+              ? `Avg watch duration: ${metrics.averageViewDuration}s`
+              : `Clip length: ${Math.round(duration || 0)}s`}
           </span>
         </div>
 
+        {/* Total Likes */}
         <div className="glass-card animate-fadeInUp" style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Likes & Feedback</span>
+            <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Likes & Upvotes</span>
             <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(34,197,94,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <HandThumbUpIcon style={{ width: 18, height: 18, color: "#4ade80" }} />
             </div>
           </div>
-          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>{metrics.likes}</p>
-          <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4, display: "block" }}>
-            High audience sentiment
+          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>
+            {metrics?.likes != null ? metrics.likes.toLocaleString() : 0}
+          </p>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6, display: "block" }}>
+            {metrics?.likes > 0 ? "Direct audience reactions" : "No likes recorded yet"}
           </span>
         </div>
 
+        {/* Total Comments */}
         <div className="glass-card animate-fadeInUp" style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Est. Click-Through</span>
+            <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Comments & Feedback</span>
             <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(245,158,11,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ChartBarIcon style={{ width: 18, height: 18, color: "#fbbf24" }} />
+              <ChatBubbleBottomCenterTextIcon style={{ width: 18, height: 18, color: "#fbbf24" }} />
             </div>
           </div>
-          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>{metrics.clickThroughRate || "5.2%"}</p>
-          <span style={{ fontSize: 12, color: "#4ade80", marginTop: 4, display: "block" }}>
-            Above industry average
+          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>
+            {metrics?.comments != null ? metrics.comments.toLocaleString() : 0}
+          </p>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6, display: "block" }}>
+            {metrics?.comments > 0 ? "Viewer discussion threads" : "No comments recorded yet"}
           </span>
         </div>
       </div>
+
+      {/* Platform Breakdown (if published) */}
+      {isPublished && (platformBreakdown?.youtube || platformBreakdown?.instagram) && (
+        <div className="glass-card" style={{ padding: "24px", marginBottom: 28, borderRadius: 16 }}>
+          <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 16px" }}>Platform Performance Breakdown</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+            {platformBreakdown.youtube && (
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderRadius: 12,
+                  background: "rgba(239, 68, 68, 0.05)",
+                  border: "1px solid rgba(239, 68, 68, 0.2)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#ef4444" }}>YouTube Video</span>
+                  <a
+                    href={`https://www.youtube.com/watch?v=${platformBreakdown.youtube.videoId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 12, color: "var(--text-accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}
+                  >
+                    Watch on YouTube <ArrowTopRightOnSquareIcon style={{ width: 12, height: 12 }} />
+                  </a>
+                </div>
+                <div style={{ display: "flex", gap: 20 }}>
+                  <div>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Views</span>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.youtube.views.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Likes</span>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.youtube.likes.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Comments</span>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.youtube.comments.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {platformBreakdown.instagram && (
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderRadius: 12,
+                  background: "rgba(225, 48, 108, 0.05)",
+                  border: "1px solid rgba(225, 48, 108, 0.2)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#E1306C" }}>Instagram Reel</span>
+                  {platformBreakdown.instagram.permalink ? (
+                    <a
+                      href={platformBreakdown.instagram.permalink}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 12, color: "var(--text-accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}
+                    >
+                      View on Instagram <ArrowTopRightOnSquareIcon style={{ width: 12, height: 12 }} />
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Connected</span>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 20 }}>
+                  <div>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Views/Plays</span>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.instagram.views.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Likes</span>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.instagram.likes.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Comments</span>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.instagram.comments.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Chart: Views Over Time */}
       <div className="glass-card" style={{ padding: "28px", marginBottom: 28, borderRadius: 16 }}>
@@ -164,14 +313,14 @@ export default function AnalyticsPage() {
           <div>
             <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>Daily Engagement & Views</h3>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "4px 0 0" }}>
-              Performance trajectory over the last 7 days
+              {isPublished ? "Performance trajectory over the last 7 to 30 days" : "Baseline timeline preview"}
             </p>
           </div>
         </div>
 
         <div style={{ width: "100%", height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+            <AreaChart data={chartData || []} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="viewsGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
@@ -231,14 +380,14 @@ export default function AnalyticsPage() {
                       textTransform: "uppercase",
                       padding: "3px 8px",
                       borderRadius: 6,
-                      background: "rgba(99, 102, 241, 0.2)",
-                      color: "var(--text-accent)",
+                      background: p.platform === "instagram" ? "rgba(225, 48, 108, 0.2)" : "rgba(99, 102, 241, 0.2)",
+                      color: p.platform === "instagram" ? "#E1306C" : "var(--text-accent)",
                     }}
                   >
                     {p.platform}
                   </span>
                   <span style={{ fontSize: 14, fontWeight: 500 }}>
-                    Scheduled: {new Date(p.scheduledAt).toLocaleDateString()}
+                    Scheduled / Published: {new Date(p.scheduledAt).toLocaleDateString()}
                   </span>
                 </div>
                 <span
@@ -247,6 +396,8 @@ export default function AnalyticsPage() {
                       ? "badge-success"
                       : p.status === "cancelled"
                       ? "badge-muted"
+                      : p.status === "failed"
+                      ? "badge-danger"
                       : "badge-brand"
                   }`}
                 >

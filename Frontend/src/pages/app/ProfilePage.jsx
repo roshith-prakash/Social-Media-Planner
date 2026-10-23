@@ -128,7 +128,7 @@ export default function ProfilePage() {
                     border: `1px solid ${form.preferredPlatforms.includes(p) ? "var(--border-strong)" : "var(--border-subtle)"}`,
                     color: form.preferredPlatforms.includes(p) ? "var(--text-accent)" : "var(--text-muted)",
                     textTransform: "capitalize",
-                  }}>{p === "x" ? "X (Twitter)" : p}</button>
+                  }}>{p}</button>
                 ))}
               </div>
             </div>
