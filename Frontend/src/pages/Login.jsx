@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   googleProvider,
+  signOut,
 } from "../firebase/firebase";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
@@ -24,10 +25,19 @@ export default function Login() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      await refreshUser();
+      try {
+        await refreshUser();
+      } catch (backendErr) {
+        await signOut(auth);
+        const isNetwork = !backendErr.response || backendErr.code === "ERR_NETWORK" || backendErr.message?.includes("Network Error");
+        throw new Error(isNetwork 
+          ? "Backend server is offline. Please start the backend server to sign in."
+          : (backendErr.response?.data?.message || backendErr.message));
+      }
       navigate("/app/upload");
     } catch (err) {
-      toast.error(err.code === "auth/invalid-credential" ? "Invalid email or password" : err.message);
+      const msg = err.code === "auth/invalid-credential" ? "Invalid email or password" : err.message;
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -37,7 +47,15 @@ export default function Login() {
     setGoogleLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
-      await refreshUser();
+      try {
+        await refreshUser();
+      } catch (backendErr) {
+        await signOut(auth);
+        const isNetwork = !backendErr.response || backendErr.code === "ERR_NETWORK" || backendErr.message?.includes("Network Error");
+        throw new Error(isNetwork 
+          ? "Backend server is offline. Please start the backend server to sign in."
+          : (backendErr.response?.data?.message || backendErr.message));
+      }
       navigate("/app/upload");
     } catch (err) {
       if (err.code !== "auth/popup-closed-by-user") toast.error(err.message);
@@ -49,38 +67,35 @@ export default function Login() {
   return (
     <div style={{
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      background: "var(--bg-base)", padding: 24,
-      backgroundImage: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,0.2) 0%, transparent 60%)",
+      background: "var(--canvas)", padding: 24,
     }}>
       <div style={{ width: "100%", maxWidth: 420 }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12, background: "var(--gradient-brand)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "var(--glow-subtle)",
-            }}>
-              <SparklesIcon style={{ width: 24, height: 24, color: "#fff" }} />
-            </div>
-            <span style={{ fontWeight: 800, fontSize: 22, fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.02em", color: "var(--text-primary)" }}>
+            <img
+              src="/logo.png"
+              alt="ReachAI Logo"
+              style={{ width: 44, height: 44, borderRadius: 11, objectFit: "contain", flexShrink: 0 }}
+            />
+            <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em", color: "var(--ink)" }}>
               ReachAI
             </span>
           </Link>
-          <h1 style={{ fontSize: 26, fontWeight: 800, marginTop: 24, marginBottom: 6, letterSpacing: "-0.02em" }}>
+          <h1 style={{ fontSize: 26, fontWeight: 800, marginTop: 24, marginBottom: 6, letterSpacing: "-0.02em", color: "var(--ink)" }}>
             Welcome back
           </h1>
           <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
-            Sign in to your account
+            Sign in to your Creator Studio
           </p>
         </div>
 
-        <div className="glass-card" style={{ padding: 32 }}>
+        <div className="card" style={{ padding: 32, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
           {/* Google Sign In */}
           <button
             id="google-signin-btn"
             className="btn btn-secondary"
-            style={{ width: "100%", marginBottom: 20, fontSize: 14 }}
+            style={{ width: "100%", marginBottom: 20, fontSize: 14, justifyContent: "center" }}
             onClick={handleGoogle}
             disabled={googleLoading}
           >
@@ -98,14 +113,14 @@ export default function Login() {
           </button>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>or continue with email</span>
-            <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--ink-soft)" }}>
                 Email
               </label>
               <input
@@ -120,8 +135,8 @@ export default function Login() {
             </div>
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)" }}>Password</label>
-                <Link to="/forgot-password" style={{ fontSize: 13, color: "var(--text-accent)", textDecoration: "none" }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-soft)" }}>Password</label>
+                <Link to="/forgot-password" style={{ fontSize: 13, color: "var(--brand-coral)", textDecoration: "none" }}>
                   Forgot password?
                 </Link>
               </div>
@@ -135,7 +150,7 @@ export default function Login() {
                 required
               />
             </div>
-            <button id="signin-btn" type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 4 }} disabled={loading}>
+            <button id="signin-btn" type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 4, justifyContent: "center" }} disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
@@ -143,7 +158,7 @@ export default function Login() {
 
         <p style={{ textAlign: "center", marginTop: 20, fontSize: 14, color: "var(--text-secondary)" }}>
           Don't have an account?{" "}
-          <Link to="/signup" style={{ color: "var(--text-accent)", fontWeight: 600, textDecoration: "none" }}>
+          <Link to="/signup" style={{ color: "var(--brand-coral)", fontWeight: 600, textDecoration: "none" }}>
             Sign up free
           </Link>
         </p>

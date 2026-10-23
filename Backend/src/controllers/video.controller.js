@@ -26,6 +26,11 @@ export const getUploadSignature = asyncWrapper(async (req, res) => {
   });
 });
 
+const getThumbnailFromVideoUrl = (videoUrl) => {
+  if (!videoUrl || typeof videoUrl !== "string") return "";
+  return videoUrl.replace(/\.[^/.]+$/, ".jpg");
+};
+
 /**
  * POST /api/v1/videos  (protected)
  * Create a video project record after successful Cloudinary upload.
@@ -45,12 +50,16 @@ export const createVideoProject = asyncWrapper(async (req, res) => {
     return errorResponse(res, "cloudinaryPublicId and cloudinaryUrl are required", 400);
   }
 
+  const computedThumbnail = (thumbnailUrl && thumbnailUrl.trim() !== "")
+    ? thumbnailUrl
+    : getThumbnailFromVideoUrl(cloudinaryUrl);
+
   const project = await VideoRepository.create({
     userId: req.dbUser.id,
     title: title || "Untitled Project",
     cloudinaryPublicId,
     cloudinaryUrl,
-    thumbnailUrl: thumbnailUrl || "",
+    thumbnailUrl: computedThumbnail || "",
     fileSize: fileSize || 0,
     duration: duration || 0,
     format: format || "mp4",
@@ -74,8 +83,34 @@ export const getMyProjects = asyncWrapper(async (req, res) => {
     VideoRepository.countByUserId(req.dbUser.id),
   ]);
 
+  const enrichedProjects = projects.map((p) => {
+    let thumb = p.thumbnailUrl;
+    if (!thumb || thumb.trim() === "") {
+      thumb = getThumbnailFromVideoUrl(p.cloudinaryUrl);
+    }
+
+    if (p.analysis?.strategy?.scorecard) {
+      const sc = p.analysis.strategy.scorecard;
+      const pFit = Number(sc.platformFit) || Number(p.analysis?.platformRecommendations?.[0]?.score) || 85;
+      const eng = Number(sc.engagementPotential) || 80;
+      const sScore = Number(sc.seoScore) || 78;
+      const vir = Number(sc.viralityPotential) || 70;
+      const prof = Number(sc.professionalism) || 85;
+      const read = Number(sc.readability) || 85;
+
+      sc.overallReadiness = Math.round(
+        pFit * 0.25 + eng * 0.25 + sScore * 0.15 + vir * 0.15 + prof * 0.10 + read * 0.10
+      );
+    }
+
+    return {
+      ...p,
+      thumbnailUrl: thumb,
+    };
+  });
+
   return successResponse(res, {
-    projects,
+    projects: enrichedProjects,
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });
 });
@@ -87,6 +122,22 @@ export const getProjectById = asyncWrapper(async (req, res) => {
   const project = await VideoRepository.findById(req.params.id);
   if (!project) return errorResponse(res, "Project not found", 404);
   if (project.userId !== req.dbUser.id) return errorResponse(res, "Unauthorized", 403);
+  if (!project.thumbnailUrl || project.thumbnailUrl.trim() === "") {
+    project.thumbnailUrl = getThumbnailFromVideoUrl(project.cloudinaryUrl);
+  }
+  if (project.analysis?.strategy?.scorecard) {
+    const sc = project.analysis.strategy.scorecard;
+    const pFit = Number(sc.platformFit) || Number(project.analysis?.platformRecommendations?.[0]?.score) || 85;
+    const eng = Number(sc.engagementPotential) || 80;
+    const sScore = Number(sc.seoScore) || 78;
+    const vir = Number(sc.viralityPotential) || 70;
+    const prof = Number(sc.professionalism) || 85;
+    const read = Number(sc.readability) || 85;
+
+    sc.overallReadiness = Math.round(
+      pFit * 0.25 + eng * 0.25 + sScore * 0.15 + vir * 0.15 + prof * 0.10 + read * 0.10
+    );
+  }
   return successResponse(res, { project });
 });
 

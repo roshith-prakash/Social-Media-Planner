@@ -9,11 +9,17 @@ class AnalysisRepository {
   }
 
   async findByProjectId(projectId) {
-    return prisma.videoAnalysis.findUnique({ where: { projectId } });
+    return prisma.videoAnalysis.findUnique({
+      where: { projectId },
+      include: { project: true },
+    });
   }
 
   async findById(id) {
-    return prisma.videoAnalysis.findUnique({ where: { id } });
+    return prisma.videoAnalysis.findUnique({
+      where: { id },
+      include: { project: true },
+    });
   }
 
   async findByUserId(userId, { skip = 0, take = 10 } = {}) {

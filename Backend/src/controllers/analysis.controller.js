@@ -75,6 +75,24 @@ export const analyzeVideo = asyncWrapper(async (req, res) => {
 });
 
 
+// Helper to compute weighted readiness from individual sub-scores
+const enrichAnalysisScorecard = (analysis) => {
+  if (analysis?.strategy?.scorecard) {
+    const sc = analysis.strategy.scorecard;
+    const pFit = Number(sc.platformFit) || Number(analysis.platformRecommendations?.[0]?.score) || 85;
+    const eng = Number(sc.engagementPotential) || 80;
+    const sScore = Number(sc.seoScore) || 78;
+    const vir = Number(sc.viralityPotential) || 70;
+    const prof = Number(sc.professionalism) || 85;
+    const read = Number(sc.readability) || 85;
+
+    sc.overallReadiness = Math.round(
+      pFit * 0.25 + eng * 0.25 + sScore * 0.15 + vir * 0.15 + prof * 0.10 + read * 0.10
+    );
+  }
+  return analysis;
+};
+
 /**
  * GET /api/v1/analysis/:projectId  (protected)
  * Get the analysis for a specific video project.
@@ -83,7 +101,7 @@ export const getAnalysis = asyncWrapper(async (req, res) => {
   const analysis = await AnalysisRepository.findByProjectId(req.params.projectId);
   if (!analysis) return errorResponse(res, "Analysis not found", 404);
   if (analysis.userId !== req.dbUser.id) return errorResponse(res, "Unauthorized", 403);
-  return successResponse(res, { analysis });
+  return successResponse(res, { analysis: enrichAnalysisScorecard(analysis) });
 });
 
 /**
@@ -94,7 +112,7 @@ export const getAnalysisById = asyncWrapper(async (req, res) => {
   const analysis = await AnalysisRepository.findById(req.params.id);
   if (!analysis) return errorResponse(res, "Analysis not found", 404);
   if (analysis.userId !== req.dbUser.id) return errorResponse(res, "Unauthorized", 403);
-  return successResponse(res, { analysis });
+  return successResponse(res, { analysis: enrichAnalysisScorecard(analysis) });
 });
 
 /**

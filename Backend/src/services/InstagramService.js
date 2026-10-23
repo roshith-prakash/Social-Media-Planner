@@ -149,7 +149,7 @@ export const handleInstagramCallback = async (code, state) => {
     where: { id: user.id },
     data: {
       instagramId: String(resolvedId || user.id),
-      instagramUsername: igUsername || user.username || "instagram_creator",
+      instagramUsername: igUsername || "instagram_creator",
       instagramName: igName || "Instagram Creator",
       instagramProfilePic: igProfilePic || "",
       instagramAccessToken: encrypt(accessToken),
@@ -402,8 +402,13 @@ export const checkInstagramMediaStatus = async (user, mediaId) => {
       const msg = mediaData.error.message || "";
       const code = mediaData.error.code;
       const subcode = mediaData.error.error_subcode;
-      // Code 100 / subcode 33 or "does not exist" confirms media is deleted from Instagram
-      if (code === 100 || subcode === 33 || /does not exist|deleted|cannot be loaded/i.test(msg)) {
+      // Code 100 / subcode 33 / subcode 2207008 or "does not exist" / "deleted" confirms media is deleted from Instagram
+      if (
+        code === 100 ||
+        subcode === 33 ||
+        subcode === 2207008 ||
+        /does not exist|deleted|cannot be loaded|unsupported get request|object with id/i.test(msg)
+      ) {
         return { exists: false, isDeleted: true, status: "deleted" };
       }
       return { exists: false, isDeleted: false, error: msg };
@@ -417,6 +422,10 @@ export const checkInstagramMediaStatus = async (user, mediaId) => {
     };
   } catch (err) {
     console.warn("Instagram media status check error:", err.message);
+    const msg = (err.message || "").toLowerCase();
+    if (/does not exist|deleted|not found|404/i.test(msg)) {
+      return { exists: false, isDeleted: true, status: "deleted", error: err.message };
+    }
     return { exists: false, isDeleted: false, error: err.message };
   }
 };

@@ -26,52 +26,45 @@ function UploadProgressUI({ pct }) {
   const offset = circ - (pct / 100) * circ;
 
   return (
-    <div className="glass-card animate-scaleIn" style={{ padding: "48px 32px", textAlign: "center" }}>
+    <div className="card animate-scaleIn" style={{ padding: "48px 32px", textAlign: "center" }}>
       {/* Circular progress ring */}
       <div style={{ position: "relative", width: 140, height: 140, margin: "0 auto 28px" }}>
         <svg width="140" height="140" style={{ transform: "rotate(-90deg)" }}>
           {/* Track */}
-          <circle cx="70" cy="70" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+          <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--border)" strokeWidth="8" />
           {/* Progress */}
           <circle
             cx="70" cy="70" r={radius} fill="none"
-            stroke="url(#uploadGrad)" strokeWidth="10"
+            stroke="var(--brand-coral)" strokeWidth="8"
             strokeDasharray={circ}
             strokeDashoffset={offset}
             strokeLinecap="round"
-            style={{ transition: "stroke-dashoffset 0.4s ease" }}
+            style={{ transition: "stroke-dashoffset 0.3s ease" }}
           />
-          <defs>
-            <linearGradient id="uploadGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#6366f1" />
-              <stop offset="100%" stopColor="#8b5cf6" />
-            </linearGradient>
-          </defs>
         </svg>
         {/* Centre text */}
         <div style={{
           position: "absolute", inset: 0,
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         }}>
-          <CloudArrowUpIcon style={{ width: 24, height: 24, color: "var(--text-accent)", marginBottom: 4 }} />
-          <span style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)" }}>{pct}%</span>
+          <CloudArrowUpIcon style={{ width: 24, height: 24, color: "var(--brand-coral)", marginBottom: 4 }} />
+          <span style={{ fontSize: 24, fontWeight: 800, color: "var(--ink)" }}>{pct}%</span>
         </div>
       </div>
 
-      <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Uploading to Cloud…</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--ink)", marginBottom: 6 }}>Uploading to Studio…</h2>
       <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20 }}>
-        Securely uploading your video to Cloudinary CDN
+        Securely uploading your video asset
       </p>
 
       {/* Linear bar */}
       <div style={{
-        background: "rgba(255,255,255,0.06)", borderRadius: 99, height: 6, overflow: "hidden", maxWidth: 360, margin: "0 auto",
+        background: "var(--surface-secondary)", borderRadius: "var(--radius-full)", height: 6, overflow: "hidden", maxWidth: 360, margin: "0 auto",
       }}>
         <div style={{
-          height: "100%", borderRadius: 99,
-          background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+          height: "100%", borderRadius: "var(--radius-full)",
+          background: "var(--brand-coral)",
           width: `${pct}%`, transition: "width 0.3s ease",
-          boxShadow: "0 0 12px rgba(99,102,241,0.5)",
         }} />
       </div>
 
@@ -85,18 +78,17 @@ function UploadProgressUI({ pct }) {
           <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
             <div style={{
               width: 28, height: 28, borderRadius: "50%",
-              background: done ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "rgba(255,255,255,0.06)",
-              border: done ? "none" : "1px solid var(--border-subtle)",
+              background: done ? "var(--status-success-bg)" : "var(--surface-secondary)",
+              border: `1px solid ${done ? "rgba(36, 116, 71, 0.25)" : "var(--border)"}`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "all 0.3s ease",
-              boxShadow: done ? "0 0 10px rgba(99,102,241,0.4)" : "none",
+              transition: "all 0.25s ease",
             }}>
               {done
-                ? <CheckCircleIcon style={{ width: 14, height: 14, color: "#fff" }} />
-                : <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
+                ? <CheckCircleIcon style={{ width: 14, height: 14, color: "var(--status-success-fg)" }} />
+                : <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-muted)" }} />
               }
             </div>
-            <span style={{ fontSize: 11, color: done ? "var(--text-accent)" : "var(--text-muted)", fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: done ? "var(--status-success-fg)" : "var(--text-muted)", fontWeight: 600 }}>
               {label}
             </span>
           </div>
@@ -131,13 +123,13 @@ function VideoPlayer({ src, title }) {
 
   return (
     <div style={{
-      background: "rgba(0,0,0,0.5)", borderRadius: 16, overflow: "hidden",
-      border: "1px solid var(--border-subtle)", marginBottom: 20, position: "relative",
+      background: "#000000", borderRadius: "var(--radius-lg)", overflow: "hidden",
+      border: "1px solid var(--border)", marginBottom: 20, position: "relative",
     }}>
       <video
         ref={videoRef}
         src={src}
-        style={{ width: "100%", maxHeight: 320, display: "block", objectFit: "contain", background: "#000" }}
+        style={{ width: "100%", maxHeight: 340, display: "block", objectFit: "contain", background: "#000" }}
         preload="metadata"
         onClick={togglePlay}
       />
@@ -147,15 +139,12 @@ function VideoPlayer({ src, title }) {
         style={{
           position: "absolute", bottom: 12, left: 12,
           width: 36, height: 36, borderRadius: "50%",
-          background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.2)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", transition: "background 0.2s",
+          background: "rgba(32,32,31,0.8)", border: "1px solid rgba(255,255,255,0.25)",
+          color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", transition: "transform 0.15s ease",
         }}
       >
-        {playing
-          ? <PauseIcon style={{ width: 16, height: 16, color: "#fff" }} />
-          : <PlayIcon style={{ width: 16, height: 16, color: "#fff" }} />
-        }
+        {playing ? <PauseIcon style={{ width: 16, height: 16 }} /> : <PlayIcon style={{ width: 16, height: 16, marginLeft: 2 }} />}
       </button>
       {title && (
         <div style={{
@@ -365,12 +354,12 @@ export default function UploadPage() {
       // Save cloud URL so the user can watch the uploaded video
       setUploadedVideoUrl(cloudResult.secure_url);
 
-      // Create project record
+      const autoThumb = cloudResult.secure_url ? cloudResult.secure_url.replace(/\.[^/.]+$/, ".jpg") : "";
       const projectRes = await createVideoProject({
         title: title || file.name.replace(/\.[^/.]+$/, ""),
         cloudinaryPublicId: cloudResult.public_id,
         cloudinaryUrl: cloudResult.secure_url,
-        thumbnailUrl: cloudResult.eager?.[0]?.secure_url || "",
+        thumbnailUrl: cloudResult.eager?.[0]?.secure_url || autoThumb,
         fileSize: cloudResult.bytes,
         duration: cloudResult.duration,
         format: cloudResult.format,
@@ -399,18 +388,18 @@ export default function UploadPage() {
 
   return (
     <div style={{ padding: "40px 32px", maxWidth: 860, margin: "0 auto" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 36 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 6 }}>
-          Analyze Your Video
+      {/* Header (Section 9 & 10) */}
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 32, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.025em", marginBottom: 6 }}>
+          Make something worth watching.
         </h1>
-        <p style={{ fontSize: 15, color: "var(--text-secondary)" }}>
-          Upload a video (up to {MAX_SIZE_MB}MB) and get a complete AI-powered strategy across YouTube and Instagram.
+        <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+          Upload a video (up to {MAX_SIZE_MB}MB) and transform it into a complete social strategy across YouTube and Instagram.
         </p>
         {dbUser?.totalAnalyses !== undefined && (
-          <div className="badge badge-brand" style={{ marginTop: 10 }}>
+          <div className="badge badge-brand" style={{ marginTop: 12 }}>
             <SparklesIcon style={{ width: 13, height: 13 }} />
-            {dbUser.totalAnalyses} analyses completed
+            {dbUser.totalAnalyses} videos analyzed
           </div>
         )}
       </div>
@@ -426,13 +415,14 @@ export default function UploadPage() {
             onDragLeave={onDragLeave}
             onClick={() => !file && fileInputRef.current?.click()}
             style={{
-              border: `2px dashed ${dragOver ? "var(--brand-500)" : file ? "rgba(99,102,241,0.4)" : "var(--border-default)"}`,
-              borderRadius: 20,
-              padding: file ? "20px" : "56px 32px",
+              border: `2px dashed ${dragOver ? "var(--brand-coral)" : file ? "var(--border-strong)" : "var(--border)"}`,
+              borderRadius: "var(--radius-xl)",
+              padding: file ? "20px" : "54px 32px",
               textAlign: "center",
               cursor: file ? "default" : "pointer",
-              background: dragOver ? "rgba(99,102,241,0.06)" : "rgba(13,13,31,0.5)",
-              transition: "all 0.2s ease",
+              background: dragOver ? "var(--brand-coral-subtle)" : "var(--surface)",
+              boxShadow: "var(--shadow-card)",
+              transition: "all 0.15s ease",
               marginBottom: 20,
               position: "relative",
             }}
@@ -448,24 +438,23 @@ export default function UploadPage() {
             {!file ? (
               <>
                 <div style={{
-                  width: 72, height: 72, borderRadius: 20,
-                  background: dragOver ? "var(--gradient-brand)" : "rgba(99,102,241,0.1)",
-                  border: `1px solid ${dragOver ? "transparent" : "rgba(99,102,241,0.2)"}`,
+                  width: 64, height: 64, borderRadius: "var(--radius-lg)",
+                  background: dragOver ? "var(--brand-coral)" : "var(--brand-coral-subtle)",
+                  border: `1px solid ${dragOver ? "transparent" : "var(--brand-coral-light)"}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  margin: "0 auto 20px", transition: "all 0.3s ease",
-                  animation: "float 4s ease-in-out infinite",
+                  margin: "0 auto 18px", transition: "all 0.2s ease",
                 }}>
-                  <CloudArrowUpIcon style={{ width: 36, height: 36, color: dragOver ? "#fff" : "var(--text-accent)" }} />
+                  <CloudArrowUpIcon style={{ width: 32, height: 32, color: dragOver ? "#fff" : "var(--brand-coral)" }} />
                 </div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                  {dragOver ? "Drop it!" : "Drop your video here"}
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", marginBottom: 6 }}>
+                  {dragOver ? "Drop your video file here" : "Upload your video asset"}
                 </h3>
-                <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16 }}>
-                  or click to browse · MP4, MOV, AVI, WebM · up to {MAX_SIZE_MB}MB
+                <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 18 }}>
+                  Drag & drop or click to browse · MP4, MOV, AVI, WebM · up to {MAX_SIZE_MB}MB
                 </p>
                 <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
-                  <VideoCameraIcon style={{ width: 16, height: 16 }} />
-                  Choose Video
+                  <VideoCameraIcon style={{ width: 15, height: 15, color: "var(--brand-coral)" }} />
+                  Choose File
                 </button>
               </>
             ) : (
@@ -474,23 +463,23 @@ export default function UploadPage() {
                 {/* In-app video player */}
                 <VideoPlayer src={preview} title={file.name} />
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "8px 4px 0" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <CheckCircleIcon style={{ width: 18, height: 18, color: "#4ade80", flexShrink: 0 }} />
+                    <CheckCircleIcon style={{ width: 18, height: 18, color: "var(--status-success-fg)", flexShrink: 0 }} />
                     <div style={{ textAlign: "left" }}>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{file.name}</p>
-                      <div style={{ display: "flex", gap: 10 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", marginBottom: 2 }}>{file.name}</p>
+                      <div style={{ display: "flex", gap: 8 }}>
                         <span style={{
-                          fontSize: 11, padding: "2px 8px", borderRadius: 99,
-                          background: fileSizeMB > MAX_SIZE_MB * 0.8 ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
-                          color: fileSizeMB > MAX_SIZE_MB * 0.8 ? "#f87171" : "#4ade80",
+                          fontSize: 11, padding: "2px 8px", borderRadius: "var(--radius-full)",
+                          background: fileSizeMB > MAX_SIZE_MB * 0.8 ? "var(--status-error-bg)" : "var(--status-success-bg)",
+                          color: fileSizeMB > MAX_SIZE_MB * 0.8 ? "var(--status-error-fg)" : "var(--status-success-fg)",
                           fontWeight: 700,
                         }}>
                           {fileSizeMB} MB / {MAX_SIZE_MB}MB
                         </span>
                         <span style={{
-                          fontSize: 11, padding: "2px 8px", borderRadius: 99,
-                          background: "rgba(99,102,241,0.12)", color: "var(--text-accent)", fontWeight: 700,
+                          fontSize: 11, padding: "2px 8px", borderRadius: "var(--radius-full)",
+                          background: "var(--surface-secondary)", color: "var(--text-secondary)", fontWeight: 600, border: "1px solid var(--border)",
                         }}>
                           {file.type.split("/")[1]?.toUpperCase() || "VIDEO"}
                         </span>
@@ -500,7 +489,7 @@ export default function UploadPage() {
                   <button
                     className="btn btn-ghost btn-sm"
                     onClick={(e) => { e.stopPropagation(); URL.revokeObjectURL(preview); setFile(null); setPreview(null); }}
-                    style={{ flexShrink: 0, color: "#f87171" }}
+                    style={{ flexShrink: 0, color: "var(--status-error-fg)" }}
                   >
                     <XMarkIcon style={{ width: 16, height: 16 }} />
                     Remove

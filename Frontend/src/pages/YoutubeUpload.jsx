@@ -39,8 +39,8 @@ function UploadVideoFromCDN() {
 
   return (
     <div style={{ maxWidth: 640, margin: "40px auto", padding: "0 20px" }}>
-      <div className="glass-card animate-fadeInUp" style={{ padding: "36px 32px" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 6 }}>
+      <div className="card animate-fadeInUp" style={{ padding: "36px 32px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 6 }}>
           Direct YouTube CDN Uploader
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 24 }}>

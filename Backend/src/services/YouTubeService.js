@@ -96,15 +96,23 @@ export const checkYouTubeVideoStatus = async (user, videoId) => {
       return { exists: false, isDeleted: true, status: "deleted" };
     }
 
+    const uploadStatus = (item.status?.uploadStatus || "").toLowerCase();
+    const isDeleted = uploadStatus === "deleted" || uploadStatus === "rejected";
+
     return {
-      exists: true,
-      isDeleted: false,
-      status: item.status?.uploadStatus || "uploaded",
+      exists: !isDeleted,
+      isDeleted,
+      status: uploadStatus || "uploaded",
       privacyStatus: item.status?.privacyStatus || "public",
       title: item.snippet?.title || "",
+      rejectionReason: item.status?.rejectionReason,
     };
   } catch (err) {
     console.warn("YouTube video status check error:", err.message);
+    const msg = (err.message || "").toLowerCase();
+    if (msg.includes("not found") || msg.includes("404") || msg.includes("forbidden") || msg.includes("deleted")) {
+      return { exists: false, isDeleted: true, status: "deleted", error: err.message };
+    }
     return { exists: false, isDeleted: false, error: err.message };
   }
 };

@@ -37,15 +37,15 @@ export default function App() {
             toastOptions={{
               duration: 4000,
               style: {
-                background: "var(--bg-elevated)",
-                color: "var(--text-primary)",
-                border: "1px solid var(--border-subtle)",
+                background: "var(--surface)",
+                color: "var(--ink)",
+                border: "1px solid var(--border)",
                 borderRadius: "10px",
                 fontSize: "14px",
                 boxShadow: "var(--shadow-elevated)",
               },
-              success: { iconTheme: { primary: "#4ade80", secondary: "transparent" } },
-              error: { iconTheme: { primary: "#f87171", secondary: "transparent" } },
+              success: { iconTheme: { primary: "#247447", secondary: "transparent" } },
+              error: { iconTheme: { primary: "#B73529", secondary: "transparent" } },
             }}
           />
 

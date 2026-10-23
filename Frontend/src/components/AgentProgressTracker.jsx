@@ -19,7 +19,6 @@ export const AGENT_PIPELINE = [
 ];
 
 export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStatus = "ready", isComplete = false }) {
-  // Calculate completed count
   const completedCount = AGENT_PIPELINE.filter(
     (agent) => agentStatuses[agent.id]?.status === "done"
   ).length;
@@ -32,12 +31,11 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
   return (
     <div
       style={{
-        background: "rgba(18, 18, 38, 0.85)",
-        backdropFilter: "blur(20px)",
-        border: "1px solid rgba(99, 102, 241, 0.25)",
-        borderRadius: 20,
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-xl)",
         padding: "28px",
-        boxShadow: "0 20px 50px rgba(0, 0, 0, 0.4)",
+        boxShadow: "var(--shadow-card)",
         maxWidth: 720,
         margin: "0 auto",
       }}
@@ -49,21 +47,22 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
             style={{
               width: 42,
               height: 42,
-              borderRadius: 12,
-              background: "linear-gradient(135deg, #6366f1, #a855f7)",
+              borderRadius: "var(--radius-md)",
+              background: "var(--brand-coral)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 0 20px rgba(99, 102, 241, 0.4)",
+              boxShadow: "0 2px 8px rgba(240, 90, 67, 0.25)",
+              color: "#FFFFFF",
             }}
           >
-            <SparklesIcon style={{ width: 22, height: 22, color: "#fff" }} />
+            <SparklesIcon style={{ width: 22, height: 22 }} />
           </div>
           <div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>
-              ReachAI Autonomous Agent Pipeline
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>
+              ReachAI Multi-Agent Pipeline
             </h3>
-            <p style={{ margin: "3px 0 0", fontSize: 13, color: "var(--text-secondary, #94a3b8)" }}>
+            <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>
               {isComplete
                 ? "All 7 agents have completed analysis!"
                 : `Collaborative multi-agent analysis in progress (${completedCount}/7 Complete)`}
@@ -73,13 +72,13 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
 
         <div
           style={{
-            background: isComplete ? "rgba(34, 197, 94, 0.15)" : "rgba(99, 102, 241, 0.15)",
-            border: `1px solid ${isComplete ? "rgba(34, 197, 94, 0.3)" : "rgba(99, 102, 241, 0.3)"}`,
-            padding: "6px 14px",
-            borderRadius: 20,
+            background: isComplete ? "var(--status-success-bg)" : "var(--brand-coral-light)",
+            border: `1px solid ${isComplete ? "rgba(36, 116, 71, 0.25)" : "rgba(240, 90, 67, 0.25)"}`,
+            padding: "5px 12px",
+            borderRadius: "var(--radius-full)",
             fontSize: 13,
-            fontWeight: 600,
-            color: isComplete ? "#4ade80" : "#818cf8",
+            fontWeight: 700,
+            color: isComplete ? "var(--status-success-fg)" : "var(--brand-coral)",
           }}
         >
           {progressPercent}%
@@ -91,10 +90,10 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
         style={{
           width: "100%",
           height: 6,
-          background: "rgba(255, 255, 255, 0.08)",
-          borderRadius: 99,
+          background: "var(--surface-secondary)",
+          borderRadius: "var(--radius-full)",
           overflow: "hidden",
-          marginBottom: 24,
+          marginBottom: 22,
         }}
       >
         <motion.div
@@ -103,10 +102,8 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
           transition={{ duration: 0.5, ease: "easeOut" }}
           style={{
             height: "100%",
-            background: isComplete
-              ? "linear-gradient(90deg, #22c55e, #4ade80)"
-              : "linear-gradient(90deg, #6366f1, #a855f7)",
-            borderRadius: 99,
+            background: isComplete ? "var(--status-success-fg)" : "var(--brand-coral)",
+            borderRadius: "var(--radius-full)",
           }}
         />
       </div>
@@ -118,32 +115,33 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
           alignItems: "center",
           justifyContent: "space-between",
           padding: "10px 14px",
-          background: "rgba(255, 255, 255, 0.03)",
-          borderRadius: 12,
-          marginBottom: 12,
-          border: "1px solid rgba(255, 255, 255, 0.06)",
+          background: "var(--surface-secondary)",
+          borderRadius: "var(--radius-md)",
+          marginBottom: 10,
+          border: "1px solid var(--border)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <VideoCameraIcon style={{ width: 18, height: 18, color: "#818cf8" }} />
+          <VideoCameraIcon style={{ width: 18, height: 18, color: "var(--brand-coral)" }} />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
               Video Ingestion & Gemini Processing
             </div>
-            <div style={{ fontSize: 11, color: "#94a3b8" }}>
-              Preparing high-resolution video stream for model analysis
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              Prepared high-resolution video stream for model analysis
             </div>
           </div>
         </div>
         <div>
           <span
             style={{
-              fontSize: 12,
-              fontWeight: 500,
-              padding: "3px 10px",
-              borderRadius: 12,
-              background: "rgba(34, 197, 94, 0.15)",
-              color: "#4ade80",
+              fontSize: 11.5,
+              fontWeight: 600,
+              padding: "2px 8px",
+              borderRadius: "var(--radius-full)",
+              background: "var(--status-success-bg)",
+              color: "var(--status-success-fg)",
+              border: "1px solid rgba(36, 116, 71, 0.2)",
             }}
           >
             ✓ Ingested
@@ -163,57 +161,55 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
             <motion.div
               key={agent.id}
               layout
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
+              transition={{ delay: index * 0.04 }}
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                padding: "12px 16px",
-                borderRadius: 12,
+                padding: "11px 15px",
+                borderRadius: "var(--radius-md)",
                 background: isRunning
-                  ? "rgba(99, 102, 241, 0.12)"
+                  ? "var(--brand-coral-subtle)"
                   : isDone
-                  ? "rgba(34, 197, 94, 0.06)"
-                  : "rgba(255, 255, 255, 0.02)",
+                  ? "var(--status-success-bg)"
+                  : "var(--surface)",
                 border: isRunning
-                  ? "1px solid rgba(99, 102, 241, 0.4)"
+                  ? "1px solid rgba(240, 90, 67, 0.3)"
                   : isDone
-                  ? "1px solid rgba(34, 197, 94, 0.2)"
-                  : "1px solid rgba(255, 255, 255, 0.04)",
-                transition: "all 0.3s ease",
+                  ? "1px solid rgba(36, 116, 71, 0.2)"
+                  : "1px solid var(--border)",
+                transition: "all 0.2s ease",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div
                   style={{
-                    width: 28,
-                    height: 28,
+                    width: 26,
+                    height: 26,
                     borderRadius: "50%",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     background: isDone
-                      ? "rgba(34, 197, 94, 0.2)"
+                      ? "rgba(36, 116, 71, 0.2)"
                       : isRunning
-                      ? "rgba(99, 102, 241, 0.25)"
-                      : "rgba(255, 255, 255, 0.05)",
-                    color: isDone ? "#4ade80" : isRunning ? "#818cf8" : "#64748b",
+                      ? "var(--brand-coral-light)"
+                      : "var(--surface-secondary)",
+                    color: isDone
+                      ? "var(--status-success-fg)"
+                      : isRunning
+                      ? "var(--brand-coral)"
+                      : "var(--text-muted)",
                     fontSize: 12,
                     fontWeight: 700,
                   }}
                 >
                   {isDone ? (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                    >
-                      <CheckCircleIcon style={{ width: 18, height: 18, color: "#4ade80" }} />
-                    </motion.div>
+                    <CheckCircleIcon style={{ width: 17, height: 17, color: "var(--status-success-fg)" }} />
                   ) : isRunning ? (
-                    <ArrowPathIcon style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+                    <ArrowPathIcon style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} />
                   ) : (
                     index + 1
                   )}
@@ -222,14 +218,14 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
                 <div>
                   <div
                     style={{
-                      fontSize: 14,
+                      fontSize: 13.5,
                       fontWeight: 600,
-                      color: isDone ? "#f1f5f9" : isRunning ? "#c7d2fe" : "#94a3b8",
+                      color: isDone ? "var(--status-success-fg)" : isRunning ? "var(--brand-coral)" : "var(--ink-soft)",
                     }}
                   >
                     {agent.name}
                   </div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>{agent.desc}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{agent.desc}</div>
                 </div>
               </div>
 
@@ -238,12 +234,12 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
                 {isDone ? (
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 600,
-                      padding: "4px 10px",
-                      borderRadius: 12,
-                      background: "rgba(34, 197, 94, 0.15)",
-                      color: "#4ade80",
+                      padding: "3px 8px",
+                      borderRadius: "var(--radius-full)",
+                      background: "rgba(36, 116, 71, 0.15)",
+                      color: "var(--status-success-fg)",
                       display: "flex",
                       alignItems: "center",
                       gap: 4,
@@ -254,25 +250,25 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
                 ) : isRunning ? (
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 600,
-                      padding: "4px 10px",
-                      borderRadius: 12,
-                      background: "rgba(99, 102, 241, 0.2)",
-                      color: "#a5b4fc",
+                      padding: "3px 8px",
+                      borderRadius: "var(--radius-full)",
+                      background: "var(--brand-coral-light)",
+                      color: "var(--brand-coral)",
                       display: "flex",
                       alignItems: "center",
-                      gap: 6,
+                      gap: 5,
                     }}
                   >
                     <span
                       style={{
-                        width: 6,
-                        height: 6,
+                        width: 5,
+                        height: 5,
                         borderRadius: "50%",
-                        background: "#818cf8",
+                        background: "var(--brand-coral)",
                         display: "inline-block",
-                        animation: "pulse 1.5s infinite",
+                        animation: "pulse 1.2s infinite",
                       }}
                     />
                     Analyzing...
@@ -280,12 +276,12 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
                 ) : isFailed ? (
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 600,
-                      padding: "4px 10px",
-                      borderRadius: 12,
-                      background: "rgba(239, 68, 68, 0.15)",
-                      color: "#f87171",
+                      padding: "3px 8px",
+                      borderRadius: "var(--radius-full)",
+                      background: "var(--status-error-bg)",
+                      color: "var(--status-error-fg)",
                     }}
                   >
                     Skipped
@@ -293,9 +289,9 @@ export default function AgentProgressTracker({ agentStatuses = {}, videoPrepStat
                 ) : (
                   <span
                     style={{
-                      fontSize: 12,
-                      color: "#64748b",
-                      padding: "4px 8px",
+                      fontSize: 11.5,
+                      color: "var(--text-muted)",
+                      padding: "3px 6px",
                     }}
                   >
                     Waiting

@@ -85,9 +85,15 @@ export const schedulePost = asyncWrapper(async (req, res) => {
  * List all scheduled posts for the current user.
  */
 export const getScheduledPosts = asyncWrapper(async (req, res) => {
+  const { sort = "desc" } = req.query;
+  const sortDirection = sort.toLowerCase() === "asc" ? "asc" : "desc";
+
   const posts = await prisma.scheduledPost.findMany({
     where: { userId: req.dbUser.id },
-    orderBy: { scheduledAt: "asc" },
+    orderBy: [
+      { scheduledAt: sortDirection },
+      { createdAt: sortDirection },
+    ],
     include: {
       project: {
         select: {
@@ -236,6 +242,10 @@ export const publishNowPost = asyncWrapper(async (req, res) => {
       }
     }
 
+    if (!externalId) {
+      throw new Error(`Upload succeeded without returning a platform media ID for ${plat.toUpperCase()}.`);
+    }
+
     const updatedPost = await prisma.scheduledPost.update({
       where: { id: post.id },
       data: { status: "published", externalPostId: externalId, errorMsg: null },
@@ -272,8 +282,28 @@ export const verifyPostStatus = asyncWrapper(async (req, res) => {
     (post.platform === "youtube" ? post.project?.youtubeVideoId : post.project?.instagramMediaId);
 
   if (!targetId) {
+    // If it was marked as published, but has no platform ID, it does not exist on the platform
+    if (post.status === "published" || post.status === "deleted_on_platform") {
+      await prisma.scheduledPost.update({
+        where: { id: post.id },
+        data: {
+          status: "deleted_on_platform",
+          errorMsg: `Video was deleted or does not exist on ${post.platform.toUpperCase()}`,
+        },
+      });
+      return successResponse(res, {
+        postId: post.id,
+        platform: post.platform,
+        exists: false,
+        isDeleted: true,
+        status: "deleted",
+        message: `Video was not found on ${post.platform.toUpperCase()}`,
+      });
+    }
+
     return successResponse(res, {
       postId: post.id,
+      platform: post.platform,
       exists: false,
       isDeleted: false,
       message: "No external post ID found to verify",
@@ -299,6 +329,15 @@ export const verifyPostStatus = asyncWrapper(async (req, res) => {
         errorMsg: `Video was deleted off ${post.platform.toUpperCase()}`,
       },
     });
+  } else if (statusResult.exists && post.status === "deleted_on_platform") {
+    // Restored on platform
+    await prisma.scheduledPost.update({
+      where: { id: post.id },
+      data: {
+        status: "published",
+        errorMsg: null,
+      },
+    });
   }
 
   return successResponse(
@@ -313,5 +352,83 @@ export const verifyPostStatus = asyncWrapper(async (req, res) => {
       ? `Confirmed: Video has been deleted from ${post.platform.toUpperCase()}`
       : `Video is live on ${post.platform.toUpperCase()}`
   );
+});
+
+/**
+ * POST /api/v1/schedule/verify-all (protected)
+ * Check whether published posts for the current user are still active or have been deleted off YouTube / Instagram.
+ */
+export const verifyAllPosts = asyncWrapper(async (req, res) => {
+  const posts = await prisma.scheduledPost.findMany({
+    where: {
+      userId: req.dbUser.id,
+      status: { in: ["published", "deleted_on_platform"] },
+    },
+    include: { project: true },
+  });
+
+  const results = await Promise.allSettled(
+    posts.map(async (post) => {
+      const plat = post.platform.toLowerCase();
+      const targetId =
+        post.externalPostId ||
+        (plat === "youtube" ? post.project?.youtubeVideoId : post.project?.instagramMediaId);
+
+      if (!targetId) {
+        await prisma.scheduledPost.update({
+          where: { id: post.id },
+          data: {
+            status: "deleted_on_platform",
+            errorMsg: `Video does not exist on ${post.platform.toUpperCase()} (missing platform ID)`,
+          },
+        });
+        return {
+          postId: post.id,
+          platform: post.platform,
+          exists: false,
+          isDeleted: true,
+          status: "deleted",
+        };
+      }
+
+      let statusResult = null;
+      if (plat === "youtube") {
+        statusResult = await checkYouTubeVideoStatus(req.dbUser, targetId);
+      } else if (plat === "instagram") {
+        statusResult = await checkInstagramMediaStatus(req.dbUser, targetId);
+      }
+
+      if (statusResult?.isDeleted) {
+        await prisma.scheduledPost.update({
+          where: { id: post.id },
+          data: {
+            status: "deleted_on_platform",
+            errorMsg: `Video was deleted off ${post.platform.toUpperCase()}`,
+          },
+        });
+      } else if (statusResult?.exists && post.status === "deleted_on_platform") {
+        await prisma.scheduledPost.update({
+          where: { id: post.id },
+          data: {
+            status: "published",
+            errorMsg: null,
+          },
+        });
+      }
+
+      return {
+        postId: post.id,
+        platform: post.platform,
+        externalId: targetId,
+        ...(statusResult || { exists: false, isDeleted: false }),
+      };
+    })
+  );
+
+  const formattedResults = results.map((r, i) =>
+    r.status === "fulfilled" ? r.value : { postId: posts[i]?.id, error: r.reason?.message }
+  );
+
+  return successResponse(res, { results: formattedResults }, "All posts verified successfully", 200);
 });
 

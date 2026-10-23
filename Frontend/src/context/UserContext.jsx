@@ -17,18 +17,23 @@ export function UserProvider({ children }) {
   const [dbUser, setDbUser] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
 
+  const [backendOffline, setBackendOffline] = useState(false);
+
   const fetchDbUser = useCallback(async () => {
     if (!userLoggedIn || !currentUser) {
       setDbUser(null);
       setUserLoading(false);
-      return;
+      setBackendOffline(false);
+      return null;
     }
     try {
       const res = await getMe();
       setDbUser(res.data.data.user);
+      setBackendOffline(false);
+      return res.data.data.user;
     } catch (err) {
-      // User may not exist in DB yet (first sign-in) — register them
-      if (err.message?.includes("not found")) {
+      const is404 = err.response?.status === 404 || err.message?.includes("not found");
+      if (is404) {
         try {
           const regRes = await registerUser({
             firebaseUID: currentUser.uid,
@@ -37,10 +42,16 @@ export function UserProvider({ children }) {
             photoURL: currentUser.photoURL || "",
           });
           setDbUser(regRes.data.data.user);
+          setBackendOffline(false);
+          return regRes.data.data.user;
         } catch (regErr) {
           console.error("Failed to auto-register user:", regErr.message);
+          setBackendOffline(true);
+          throw regErr;
         }
       }
+      setBackendOffline(true);
+      throw err;
     } finally {
       setUserLoading(false);
     }
@@ -59,7 +70,7 @@ export function UserProvider({ children }) {
   };
 
   return (
-    <UserContext.Provider value={{ dbUser, setDbUser, userLoading, refreshUser, completeOnboarding }}>
+    <UserContext.Provider value={{ dbUser, setDbUser, userLoading, backendOffline, refreshUser, completeOnboarding }}>
       {children}
     </UserContext.Provider>
   );

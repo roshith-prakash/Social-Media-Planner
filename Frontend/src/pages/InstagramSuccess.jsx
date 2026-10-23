@@ -5,28 +5,28 @@ const InstagramSuccess = () => {
   const navigate = useNavigate();
 
   return (
-    <div style={{ maxWidth: 500, margin: "80px auto", padding: "0 20px" }}>
-      <div className="glass-card animate-fadeInUp" style={{ padding: "48px 32px", textAlign: "center" }}>
+    <div style={{ maxWidth: 520, margin: "80px auto", padding: "0 20px" }}>
+      <div className="card animate-fadeInUp" style={{ padding: "48px 36px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16 }}>
         <div style={{
-          width: 64, height: 64, borderRadius: 18,
-          background: "linear-gradient(135deg, rgba(225,48,108,0.2), rgba(131,58,180,0.2))",
-          border: "1px solid rgba(225,48,108,0.4)", display: "flex", alignItems: "center",
+          width: 64, height: 64, borderRadius: 16,
+          background: "var(--brand-coral-light)",
+          border: "1px solid var(--brand-coral)30", display: "flex", alignItems: "center",
           justifyContent: "center", margin: "0 auto 20px",
         }}>
           <CheckCircleIcon style={{ width: 36, height: 36, color: "#E1306C" }} />
         </div>
 
-        <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 8 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
           Instagram Connected!
         </h1>
-        <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 28, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 32, lineHeight: 1.6 }}>
           Your Instagram Professional account is successfully connected. You can now publish Reels and schedule video posts directly to your Instagram profile.
         </p>
 
         <button
           onClick={() => navigate("/app/profile")}
           className="btn btn-primary btn-lg"
-          style={{ width: "100%", justifyContent: "center", background: "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)" }}
+          style={{ width: "100%", justifyContent: "center" }}
         >
           View Profile & Accounts
         </button>

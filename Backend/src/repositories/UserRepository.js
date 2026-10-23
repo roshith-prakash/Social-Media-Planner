@@ -17,10 +17,6 @@ class UserRepository {
     return prisma.user.findUnique({ where: { id } });
   }
 
-  async findByUsername(username) {
-    return prisma.user.findUnique({ where: { username } });
-  }
-
   async create(data) {
     return prisma.user.create({ data });
   }

@@ -12,12 +12,13 @@ import {
   BoltIcon, PaperAirplaneIcon, InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
+import { PlatformIcon } from "../../components/SocialLogos";
 
 
 const PLATFORM_COLORS = { youtube: "#ff4444", instagram: "#E1306C" };
 const PLATFORM_LABELS = { youtube: "YouTube", instagram: "Instagram" };
 
-function ScoreRing({ score, label, color = "var(--brand-500)" }) {
+function ScoreRing({ score, label, color = "var(--brand-coral)" }) {
   const radius = 28;
   const circ = 2 * Math.PI * radius;
   const offset = circ - (score / 100) * circ;
@@ -25,7 +26,7 @@ function ScoreRing({ score, label, color = "var(--brand-500)" }) {
     <div style={{ textAlign: "center" }}>
       <div style={{ position: "relative", width: 72, height: 72, margin: "0 auto 6px" }}>
         <svg width="72" height="72" viewBox="0 0 72 72">
-          <circle cx="36" cy="36" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+          <circle cx="36" cy="36" r={radius} fill="none" stroke="var(--border)" strokeWidth="6" />
           <circle
             cx="36" cy="36" r={radius} fill="none" stroke={color} strokeWidth="6"
             strokeDasharray={circ} strokeDashoffset={offset}
@@ -34,10 +35,10 @@ function ScoreRing({ score, label, color = "var(--brand-500)" }) {
           />
         </svg>
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: "var(--text-primary)" }}>{score}</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: "var(--ink)" }}>{score}</span>
         </div>
       </div>
-      <p style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>{label}</p>
+      <p style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>{label}</p>
     </div>
   );
 }
@@ -72,9 +73,10 @@ function CopyBtn({ text, platform, contentType, analysisId, projectId, onSchedul
           className="copy-btn"
           onClick={() => onPublishNow(text, platform)}
           style={{
-            color: "#ec4899",
-            borderColor: "rgba(236, 72, 153, 0.35)",
-            background: "rgba(236, 72, 153, 0.08)",
+            color: "var(--brand-coral)",
+            borderColor: "var(--brand-coral-light)",
+            background: "var(--brand-coral-subtle)",
+            fontWeight: 600,
           }}
           title="Publish immediately to this platform"
         >
@@ -99,7 +101,7 @@ function ContentBlock({ label, content, platform, contentType, analysisId, proje
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
-        <button style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600 }} onClick={() => setExpanded(e => !e)}>
+        <button style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "var(--ink-soft)", fontSize: 13, fontWeight: 600 }} onClick={() => setExpanded(e => !e)}>
           <ChevronDownIcon style={{ width: 14, height: 14, transform: expanded ? "rotate(0)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
           {label}
         </button>
@@ -115,8 +117,8 @@ function ContentBlock({ label, content, platform, contentType, analysisId, proje
       </div>
       {expanded && (
         <div style={{
-          background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)", borderRadius: 10,
-          padding: "14px 16px", fontSize: 14, color: "var(--text-primary)", lineHeight: 1.7,
+          background: "var(--surface-secondary)", border: "1px solid var(--border)", borderRadius: 10,
+          padding: "16px 18px", fontSize: 14, color: "var(--ink)", lineHeight: 1.7,
           whiteSpace: "pre-wrap", wordBreak: "break-word",
         }}>
           {text}
@@ -125,6 +127,7 @@ function ContentBlock({ label, content, platform, contentType, analysisId, proje
     </div>
   );
 }
+
 
 
 const TABS = [
@@ -312,24 +315,15 @@ export default function AnalysisPage() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <button
-            className="btn btn-sm"
+            className="btn btn-primary btn-sm"
             onClick={() => handleOpenPublishNow(gc.instagram?.caption || gc.youtube?.description || "", topPlatform?.platform || "youtube")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
-              color: "#fff",
-              border: "none",
-              boxShadow: "0 4px 14px rgba(236, 72, 153, 0.35)",
-              fontWeight: 600,
-            }}
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
           >
             <BoltIcon style={{ width: 14, height: 14 }} />
             Post Now
           </button>
           <button
-            className="btn btn-primary btn-sm"
+            className="btn btn-secondary btn-sm"
             onClick={() => handleOpenSchedule(gc.instagram?.caption || gc.youtube?.description || "", topPlatform?.platform || "youtube")}
             style={{ display: "flex", alignItems: "center", gap: 6 }}
           >
@@ -359,16 +353,16 @@ export default function AnalysisPage() {
 
       {/* ── Scorecard Strip ─────────────────────────────────────────────── */}
       {scorecard && Object.keys(scorecard).length > 0 && (
-        <div className="glass-card" style={{ padding: 24, marginBottom: 28, overflowX: "auto" }}>
+        <div className="card" style={{ padding: 24, marginBottom: 28, overflowX: "auto" }}>
           <div style={{ display: "flex", gap: 24, justifyContent: "space-around", minWidth: 480 }}>
             {[
-              { key: "overallReadiness", label: "Overall", color: "var(--brand-500)" },
-              { key: "platformFit", label: "Platform Fit", color: "#a855f7" },
-              { key: "seoScore", label: "SEO", color: "#10b981" },
-              { key: "engagementPotential", label: "Engagement", color: "#f59e0b" },
-              { key: "viralityPotential", label: "Virality", color: "#ec4899" },
-              { key: "professionalism", label: "Professional", color: "#06b6d4" },
-              { key: "readability", label: "Readability", color: "#818cf8" },
+              { key: "overallReadiness", label: "Overall", color: "var(--brand-coral)" },
+              { key: "platformFit", label: "Platform Fit", color: "var(--lilac-dark)" },
+              { key: "seoScore", label: "SEO", color: "var(--mint-dark)" },
+              { key: "engagementPotential", label: "Engagement", color: "var(--yellow-dark)" },
+              { key: "viralityPotential", label: "Virality", color: "var(--brand-coral)" },
+              { key: "professionalism", label: "Professional", color: "var(--blue-dark)" },
+              { key: "readability", label: "Readability", color: "var(--lilac-dark)" },
             ].map(({ key, label, color }) => scorecard[key] != null && (
               <ScoreRing key={key} score={scorecard[key]} label={label} color={color} />
             ))}
@@ -388,15 +382,28 @@ export default function AnalysisPage() {
       {/* ══ TAB: OVERVIEW ══════════════════════════════════════════════════ */}
       {activeTab === "overview" && (
         <div className="animate-fadeInUp stagger" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div className="glass-card animate-fadeInUp" style={{ padding: 24, gridColumn: "1 / -1" }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>Summary</h3>
-            <p style={{ fontSize: 15, color: "var(--text-primary)", lineHeight: 1.7 }}>{va.summary}</p>
+          <div className="card animate-fadeInUp" style={{ padding: 24, gridColumn: "1 / -1", display: "grid", gridTemplateColumns: analysis.project?.cloudinaryUrl ? "minmax(280px, 340px) 1fr" : "1fr", gap: 24, alignItems: "start" }}>
+            {analysis.project?.cloudinaryUrl && (
+              <div style={{ position: "relative", width: "100%", borderRadius: 12, overflow: "hidden", background: "#000", border: "1px solid var(--border)" }}>
+                <video
+                  src={analysis.project.cloudinaryUrl}
+                  poster={analysis.project.thumbnailUrl || analysis.project.cloudinaryUrl.replace(/\.[^/.]+$/, ".jpg")}
+                  controls
+                  preload="metadata"
+                  style={{ width: "100%", maxHeight: 220, display: "block", objectFit: "contain", background: "#000" }}
+                />
+              </div>
+            )}
+            <div>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>Summary</h3>
+              <p style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.7 }}>{va.summary}</p>
+            </div>
           </div>
           {topPlatform && (
             <div className="glass-card animate-fadeInUp" style={{ padding: 24 }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Best Platform</h3>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 28 }}>{topPlatform.platform === "youtube" ? "▶" : "📸"}</div>
+                <PlatformIcon platform={topPlatform.platform} size={32} />
                 <div>
                   <p style={{ fontWeight: 700, fontSize: 17 }}>{PLATFORM_LABELS[topPlatform.platform]}</p>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -478,8 +485,8 @@ export default function AnalysisPage() {
                 {va.videoQualityIssues.map((issue, i) => (
                   <div key={i} style={{
                     padding: "14px 16px", borderRadius: 10,
-                    background: issue.severity === "critical" ? "rgba(239,68,68,0.08)" : issue.severity === "moderate" ? "rgba(251,191,36,0.08)" : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${issue.severity === "critical" ? "rgba(239,68,68,0.2)" : issue.severity === "moderate" ? "rgba(251,191,36,0.2)" : "var(--border-subtle)"}`,
+                    background: issue.severity === "critical" ? "var(--status-error-bg)" : issue.severity === "moderate" ? "var(--status-warning-bg)" : "var(--surface-secondary)",
+                    border: `1px solid ${issue.severity === "critical" ? "rgba(183,53,41,0.2)" : issue.severity === "moderate" ? "rgba(130,91,18,0.2)" : "var(--border)"}`,
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                       <span className={`badge ${issue.severity === "critical" ? "badge-danger" : issue.severity === "moderate" ? "badge-warning" : "badge-muted"}`}>
@@ -580,9 +587,9 @@ export default function AnalysisPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <div style={{
                     width: 52, height: 52, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
-                    background: `${PLATFORM_COLORS[p.platform]}15`, border: `1px solid ${PLATFORM_COLORS[p.platform]}30`, fontSize: 22,
+                    background: `${PLATFORM_COLORS[p.platform]}15`, border: `1px solid ${PLATFORM_COLORS[p.platform]}30`,
                   }}>
-                    {p.platform === "youtube" ? "▶" : "📸"}
+                    <PlatformIcon platform={p.platform} size={28} />
                   </div>
                   <div>
                     <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{PLATFORM_LABELS[p.platform]}</h3>
@@ -683,24 +690,35 @@ export default function AnalysisPage() {
       {activeTab === "content" && (
         <div>
           {/* Platform selector */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-            {["youtube", "instagram"].map(p => (
-              <button
-                key={p}
-                id={`platform-tab-${p}`}
-                onClick={() => setActivePlatform(p)}
-                style={{
-                  padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontWeight: 600, fontSize: 14,
-                  background: activePlatform === p ? `${PLATFORM_COLORS[p]}20` : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${activePlatform === p ? PLATFORM_COLORS[p] + "50" : "var(--border-subtle)"}`,
-                  color: activePlatform === p ? PLATFORM_COLORS[p] : "var(--text-muted)",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                {PLATFORM_LABELS[p]}
-              </button>
-            ))}
-            <button className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => handleRegenerate("content")} disabled={regenerating === "content"}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 24, alignItems: "center" }}>
+            {["youtube", "instagram"].map(p => {
+              const isSelected = activePlatform === p;
+              return (
+                <button
+                  key={p}
+                  id={`platform-tab-${p}`}
+                  onClick={() => setActivePlatform(p)}
+                  style={{
+                    padding: "9px 20px",
+                    borderRadius: "var(--radius-md)",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    background: isSelected ? (p === "youtube" ? "#FFF0F0" : "#FFF0F4") : "var(--surface)",
+                    border: `1.5px solid ${isSelected ? (p === "youtube" ? "#FF0033" : "#E1306C") : "var(--border)"}`,
+                    color: isSelected ? (p === "youtube" ? "#FF0033" : "#E1306C") : "var(--text-secondary)",
+                    transition: "all 0.15s ease",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <PlatformIcon platform={p} size={18} />
+                  {PLATFORM_LABELS[p]}
+                </button>
+              );
+            })}
+            <button className="btn btn-secondary btn-sm" style={{ marginLeft: "auto" }} onClick={() => handleRegenerate("content")} disabled={regenerating === "content"}>
               <ArrowPathIcon style={{ width: 14, height: 14, ...(regenerating === "content" ? { animation: "spin-slow 1s linear infinite" } : {}) }} />
               Regenerate
             </button>
@@ -709,11 +727,11 @@ export default function AnalysisPage() {
           {/* YouTube Content */}
           {activePlatform === "youtube" && gc.youtube && (
             <div className="stagger">
-              <div className="glass-card animate-fadeInUp" style={{ padding: 24, marginBottom: 16 }}>
+              <div className="card animate-fadeInUp" style={{ padding: 24, marginBottom: 16 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Title Variations</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {gc.youtube.titles?.map((t, i) => (
-                    <div key={i} style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)" }}>
+                    <div key={i} style={{ padding: "14px 16px", borderRadius: 10, background: "var(--surface-secondary)", border: "1px solid var(--border)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
                         <p style={{ fontSize: 14, fontWeight: 600 }}>{t.text}</p>
                         <CopyBtn text={t.text} platform="youtube" contentType="title" analysisId={id} projectId={projectId} />
@@ -787,13 +805,13 @@ export default function AnalysisPage() {
                     <span className="badge badge-brand" style={{ background: "rgba(225,48,108,0.15)", color: "#E1306C", border: "1px solid rgba(225,48,108,0.3)" }}>Reels Retention</span>
                   </h3>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                    <div style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-accent)", marginBottom: 6 }}>👀 Visual / On-Screen Text</p>
-                      <p style={{ fontSize: 14, color: "var(--text-primary)" }}>{gc.instagram.hook.visualHook}</p>
+                    <div style={{ padding: "14px 16px", borderRadius: 10, background: "var(--surface-secondary)", border: "1px solid var(--border)" }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "var(--brand-coral)", marginBottom: 6 }}>👀 Visual / On-Screen Text</p>
+                      <p style={{ fontSize: 14, color: "var(--ink)" }}>{gc.instagram.hook.visualHook}</p>
                     </div>
-                    <div style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                    <div style={{ padding: "14px 16px", borderRadius: 10, background: "var(--surface-secondary)", border: "1px solid var(--border)" }}>
                       <p style={{ fontSize: 12, fontWeight: 700, color: "#E1306C", marginBottom: 6 }}>🎙️ Spoken Verbal Hook</p>
-                      <p style={{ fontSize: 14, color: "var(--text-primary)" }}>"{gc.instagram.hook.verbalHook}"</p>
+                      <p style={{ fontSize: 14, color: "var(--ink)" }}>"{gc.instagram.hook.verbalHook}"</p>
                     </div>
                   </div>
                 </div>
@@ -837,7 +855,7 @@ export default function AnalysisPage() {
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {gc.instagram.reelsScript.map((step, idx) => (
-                      <div key={idx} style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                      <div key={idx} style={{ padding: "14px 16px", borderRadius: 10, background: "var(--surface-secondary)", border: "1px solid var(--border)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                           <span className="badge badge-brand" style={{ fontSize: 12 }}>{step.timestamp}</span>
                           <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>{step.section}</span>
@@ -917,7 +935,7 @@ export default function AnalysisPage() {
                   <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Alternative Caption Tones</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     {gc.instagram.variations.map((v, i) => (
-                      <div key={i} style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                      <div key={i} style={{ padding: "14px 16px", borderRadius: 10, background: "var(--surface-secondary)", border: "1px solid var(--border)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
                           <span className="badge badge-muted" style={{ textTransform: "capitalize" }}>{v.tone.replace("_", " ")}</span>
                           <CopyBtn
@@ -962,7 +980,7 @@ export default function AnalysisPage() {
               <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Posting Schedule</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {st.postingSchedule.map((s, i) => (
-                  <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start", padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                  <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start", padding: "14px 16px", borderRadius: 10, background: "var(--surface-secondary)", border: "1px solid var(--border)" }}>
                     <span className={`badge platform-${s.platform}`} style={{ flexShrink: 0, marginTop: 2 }}>{PLATFORM_LABELS[s.platform]}</span>
                     <div>
                       <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{s.suggestedDay} · {s.suggestedTime}</p>
@@ -991,7 +1009,7 @@ export default function AnalysisPage() {
               <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Estimated Reach</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
                 {Object.entries(st.estimatedReach).map(([p, reach]) => (
-                  <div key={p} style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                  <div key={p} style={{ padding: "14px 16px", borderRadius: 10, background: "var(--surface-secondary)", border: "1px solid var(--border)" }}>
                     <span className={`badge platform-${p}`}>{PLATFORM_LABELS[p]}</span>
                     <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 8 }}>{reach}</p>
                   </div>
@@ -1019,26 +1037,26 @@ export default function AnalysisPage() {
           onClick={() => setShowScheduleModal(false)}
         >
           <div
-            className="glass-card animate-scaleIn"
+            className="card animate-scaleIn"
             style={{
               maxWidth: 540,
               width: "100%",
               padding: 28,
-              background: "rgba(22, 22, 45, 0.95)",
-              border: "1px solid var(--border-default)",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
               borderRadius: 16,
-              boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5)",
+              boxShadow: "0 20px 48px rgba(0, 0, 0, 0.12)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 {scheduleMode === "now" ? (
-                  <BoltIcon style={{ width: 22, height: 22, color: "#ec4899" }} />
+                  <BoltIcon style={{ width: 22, height: 22, color: "var(--brand-coral)" }} />
                 ) : (
-                  <ClockIcon style={{ width: 22, height: 22, color: "var(--text-accent)" }} />
+                  <ClockIcon style={{ width: 22, height: 22, color: "var(--brand-coral)" }} />
                 )}
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--ink)" }}>
                   {scheduleMode === "now" ? "Publish Post Now" : "Schedule Publication"}
                 </h3>
               </div>
@@ -1050,11 +1068,11 @@ export default function AnalysisPage() {
             {/* Mode Switcher Toggle */}
             <div style={{
               display: "flex",
-              background: "rgba(255, 255, 255, 0.05)",
+              background: "var(--surface-secondary)",
               padding: 4,
               borderRadius: 10,
               marginBottom: 18,
-              border: "1px solid var(--border-subtle)",
+              border: "1px solid var(--border)",
             }}>
               <button
                 type="button"
@@ -1071,10 +1089,10 @@ export default function AnalysisPage() {
                   fontWeight: 600,
                   cursor: "pointer",
                   border: "none",
-                  transition: "all 0.2s ease",
-                  background: scheduleMode === "now" ? "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)" : "transparent",
+                  transition: "all 0.15s ease",
+                  background: scheduleMode === "now" ? "var(--brand-coral)" : "transparent",
                   color: scheduleMode === "now" ? "#fff" : "var(--text-secondary)",
-                  boxShadow: scheduleMode === "now" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
+                  boxShadow: scheduleMode === "now" ? "0 2px 6px rgba(240, 90, 67, 0.25)" : "none",
                 }}
               >
                 <BoltIcon style={{ width: 14, height: 14 }} />
@@ -1095,9 +1113,10 @@ export default function AnalysisPage() {
                   fontWeight: 600,
                   cursor: "pointer",
                   border: "none",
-                  transition: "all 0.2s ease",
-                  background: scheduleMode === "schedule" ? "var(--brand-500)" : "transparent",
+                  transition: "all 0.15s ease",
+                  background: scheduleMode === "schedule" ? "var(--brand-coral)" : "transparent",
                   color: scheduleMode === "schedule" ? "#fff" : "var(--text-secondary)",
+                  boxShadow: scheduleMode === "schedule" ? "0 2px 6px rgba(240, 90, 67, 0.25)" : "none",
                 }}
               >
                 <ClockIcon style={{ width: 14, height: 14 }} />
@@ -1108,7 +1127,7 @@ export default function AnalysisPage() {
             <form onSubmit={handleActionSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Target Platform Selector */}
               <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--ink-soft)" }}>
                   Target Platform
                 </label>
                 <div style={{ display: "flex", gap: 10 }}>
@@ -1127,14 +1146,15 @@ export default function AnalysisPage() {
                           fontWeight: 600,
                           fontSize: 13,
                           cursor: "pointer",
-                          background: isSelected ? `${PLATFORM_COLORS[p]}25` : "rgba(255,255,255,0.03)",
-                          border: `1px solid ${isSelected ? PLATFORM_COLORS[p] : "rgba(255,255,255,0.08)"}`,
-                          color: isSelected ? PLATFORM_COLORS[p] : "var(--text-secondary)",
+                          background: isSelected ? "var(--brand-coral-subtle)" : "var(--surface)",
+                          border: `1.5px solid ${isSelected ? "var(--brand-coral)" : "var(--border)"}`,
+                          color: isSelected ? "var(--brand-coral)" : "var(--ink-soft)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           gap: 6,
                           flexWrap: "wrap",
+                          transition: "all 0.15s ease",
                         }}
                       >
                         <span>{PLATFORM_LABELS[p]}</span>
@@ -1143,8 +1163,8 @@ export default function AnalysisPage() {
                             fontSize: 10,
                             padding: "2px 6px",
                             borderRadius: 4,
-                            background: connected ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                            color: connected ? "#4ade80" : "#f87171",
+                            background: connected ? "var(--status-success-bg)" : "var(--status-error-bg)",
+                            color: connected ? "var(--status-success-fg)" : "var(--status-error-fg)",
                             fontWeight: 700,
                           }}
                         >
@@ -1162,8 +1182,8 @@ export default function AnalysisPage() {
                   style={{
                     padding: "12px 14px",
                     borderRadius: 8,
-                    background: "rgba(239, 68, 68, 0.08)",
-                    border: "1px solid rgba(239, 68, 68, 0.25)",
+                    background: "var(--status-error-bg)",
+                    border: "1px solid rgba(183, 53, 41, 0.2)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -1171,8 +1191,8 @@ export default function AnalysisPage() {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <InformationCircleIcon style={{ width: 18, height: 18, color: "#f87171", flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, color: "#f87171" }}>
+                    <InformationCircleIcon style={{ width: 18, height: 18, color: "var(--status-error-fg)", flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: "var(--status-error-fg)" }}>
                       Your <strong>{PLATFORM_LABELS[scheduleForm.platform]}</strong> account is not connected.
                     </span>
                   </div>
@@ -1191,14 +1211,14 @@ export default function AnalysisPage() {
                 <div style={{
                   padding: "10px 14px",
                   borderRadius: 8,
-                  background: "rgba(236, 72, 153, 0.08)",
-                  border: "1px solid rgba(236, 72, 153, 0.25)",
+                  background: "var(--brand-coral-subtle)",
+                  border: "1px solid var(--brand-coral-light)",
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
                 }}>
-                  <BoltIcon style={{ width: 18, height: 18, color: "#ec4899", flexShrink: 0 }} />
-                  <p style={{ fontSize: 12, color: "var(--text-primary)", margin: 0, lineHeight: 1.5 }}>
+                  <BoltIcon style={{ width: 18, height: 18, color: "var(--brand-coral)", flexShrink: 0 }} />
+                  <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: 0, lineHeight: 1.5 }}>
                     Instant publication: Your video and caption will be published directly to your connected <strong>{PLATFORM_LABELS[scheduleForm.platform]}</strong> account right now.
                   </p>
                 </div>
@@ -1207,7 +1227,7 @@ export default function AnalysisPage() {
               {/* Scheduled Date & Time if Schedule Mode */}
               {scheduleMode === "schedule" && (
                 <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--ink-soft)" }}>
                     Scheduled Date & Time
                   </label>
                   <input
@@ -1222,7 +1242,7 @@ export default function AnalysisPage() {
 
               {/* Content textarea */}
               <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--ink-soft)" }}>
                   Post Content / Caption
                 </label>
                 <textarea
@@ -1241,35 +1261,18 @@ export default function AnalysisPage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-sm"
+                  className="btn btn-primary btn-sm"
                   disabled={submittingAction || !isPlatformConnected(scheduleForm.platform)}
                   title={!isPlatformConnected(scheduleForm.platform) ? `Connect ${PLATFORM_LABELS[scheduleForm.platform]} account first` : ""}
                   style={
                     !isPlatformConnected(scheduleForm.platform)
                       ? {
-                          background: "rgba(255, 255, 255, 0.08)",
+                          background: "var(--surface-secondary)",
                           color: "var(--text-muted)",
-                          border: "1px solid var(--border-subtle)",
+                          border: "1px solid var(--border)",
                           cursor: "not-allowed",
                         }
-                      : scheduleMode === "now"
-                      ? {
-                          background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
-                          color: "#fff",
-                          border: "none",
-                          fontWeight: 600,
-                          boxShadow: "0 4px 14px rgba(236, 72, 153, 0.35)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }
-                      : {
-                          background: "var(--brand-500)",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }
+                      : {}
                   }
                 >
                   {submittingAction ? (

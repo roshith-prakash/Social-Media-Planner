@@ -17,7 +17,6 @@ model User {
   firebaseUID         String   @unique
   email               String   @unique
   name                String?  @default("")
-  username            String?  @unique
   photoURL            String?  @default("")
   bio                 String?  @default("")
   niche               String?  @default("")

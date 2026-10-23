@@ -7,6 +7,7 @@ import {
   signInWithPopup,
   googleProvider,
   updateProfile,
+  signOut,
 } from "../firebase/firebase";
 import { registerUser } from "../api/authApi";
 import { SparklesIcon } from "@heroicons/react/24/outline";
@@ -26,14 +27,32 @@ export default function Signup() {
     setLoading(true);
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      if (name) await updateProfile(cred.user, { displayName: name });
+      if (name) {
+        try { await updateProfile(cred.user, { displayName: name }); } catch {}
+      }
+
+      // Sync user to Backend MongoDB
+      try {
+        await registerUser({
+          firebaseUID: cred.user.uid,
+          email: cred.user.email,
+          name: name || "",
+          photoURL: cred.user.photoURL || "",
+        });
+      } catch (backendErr) {
+        // Backend server is down or errored — roll back Firebase user immediately
+        try {
+          await cred.user.delete();
+        } catch {
+          await signOut(auth);
+        }
+        const isNetwork = !backendErr.response || backendErr.code === "ERR_NETWORK" || backendErr.message?.includes("Network Error");
+        throw new Error(isNetwork 
+          ? "Backend server is offline. Please start the backend server before signing up."
+          : (backendErr.response?.data?.message || backendErr.message));
+      }
+
       await sendEmailVerification(cred.user);
-      await registerUser({
-        firebaseUID: cred.user.uid,
-        email: cred.user.email,
-        name: name || "",
-        photoURL: cred.user.photoURL || "",
-      });
       toast.success("Account created! Check your email to verify.");
       navigate("/onboarding");
     } catch (err) {
@@ -48,13 +67,24 @@ export default function Signup() {
     setGoogleLoading(true);
     try {
       const cred = await signInWithPopup(auth, googleProvider);
-      await registerUser({
-        firebaseUID: cred.user.uid,
-        email: cred.user.email,
-        name: cred.user.displayName || "",
-        photoURL: cred.user.photoURL || "",
-      });
-      navigate("/onboarding");
+
+      // Sync Google user to Backend MongoDB
+      try {
+        await registerUser({
+          firebaseUID: cred.user.uid,
+          email: cred.user.email,
+          name: cred.user.displayName || "",
+          photoURL: cred.user.photoURL || "",
+        });
+        navigate("/onboarding");
+      } catch (backendErr) {
+        // Backend server is down or errored — sign out immediately
+        await signOut(auth);
+        const isNetwork = !backendErr.response || backendErr.code === "ERR_NETWORK" || backendErr.message?.includes("Network Error");
+        throw new Error(isNetwork 
+          ? "Backend server is offline. Please start the backend server before signing up."
+          : (backendErr.response?.data?.message || backendErr.message));
+      }
     } catch (err) {
       if (err.code !== "auth/popup-closed-by-user") toast.error(err.message);
     } finally {
@@ -65,23 +95,21 @@ export default function Signup() {
   return (
     <div style={{
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      background: "var(--bg-base)", padding: 24,
-      backgroundImage: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,0.2) 0%, transparent 60%)",
+      background: "var(--canvas)", padding: 24,
     }}>
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12, background: "var(--gradient-brand)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <SparklesIcon style={{ width: 24, height: 24, color: "#fff" }} />
-            </div>
-            <span style={{ fontWeight: 800, fontSize: 22, fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.02em", color: "var(--text-primary)" }}>
+            <img
+              src="/logo.png"
+              alt="ReachAI Logo"
+              style={{ width: 44, height: 44, borderRadius: 11, objectFit: "contain", flexShrink: 0 }}
+            />
+            <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em", color: "var(--ink)" }}>
               ReachAI
             </span>
           </Link>
-          <h1 style={{ fontSize: 26, fontWeight: 800, marginTop: 24, marginBottom: 6, letterSpacing: "-0.02em" }}>
+          <h1 style={{ fontSize: 26, fontWeight: 800, marginTop: 24, marginBottom: 6, letterSpacing: "-0.02em", color: "var(--ink)" }}>
             Create your account
           </h1>
           <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
@@ -89,11 +117,11 @@ export default function Signup() {
           </p>
         </div>
 
-        <div className="glass-card" style={{ padding: 32 }}>
+        <div className="card" style={{ padding: 32, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
           <button
             id="google-signup-btn"
             className="btn btn-secondary"
-            style={{ width: "100%", marginBottom: 20 }}
+            style={{ width: "100%", marginBottom: 20, justifyContent: "center" }}
             onClick={handleGoogle}
             disabled={googleLoading}
           >
@@ -111,25 +139,25 @@ export default function Signup() {
           </button>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>or sign up with email</span>
-            <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>Full Name</label>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--ink-soft)" }}>Full Name</label>
               <input id="name-input" type="text" className="input" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>Email</label>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--ink-soft)" }}>Email</label>
               <input id="signup-email-input" type="email" className="input" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>Password</label>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--ink-soft)" }}>Password</label>
               <input id="signup-password-input" type="password" className="input" placeholder="Min 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
-            <button id="signup-btn" type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 4 }} disabled={loading}>
+            <button id="signup-btn" type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 4, justifyContent: "center" }} disabled={loading}>
               {loading ? "Creating account..." : "Create Account"}
             </button>
           </form>
@@ -141,7 +169,7 @@ export default function Signup() {
 
         <p style={{ textAlign: "center", marginTop: 20, fontSize: 14, color: "var(--text-secondary)" }}>
           Already have an account?{" "}
-          <Link to="/signin" style={{ color: "var(--text-accent)", fontWeight: 600, textDecoration: "none" }}>Sign in</Link>
+          <Link to="/signin" style={{ color: "var(--brand-coral)", fontWeight: 600, textDecoration: "none" }}>Sign in</Link>
         </p>
       </div>
     </div>

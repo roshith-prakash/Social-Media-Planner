@@ -12,19 +12,11 @@ export const getMe = asyncWrapper(async (req, res) => {
 
 /**
  * PUT /api/v1/users/me  (protected)
- * Update name, bio, niche, brandVoice, preferredPlatforms, username
+ * Update name, bio, niche, brandVoice, preferredPlatforms
  */
 export const updateMe = asyncWrapper(async (req, res) => {
-  const { name, bio, niche, brandVoice, preferredPlatforms, username } = req.body;
+  const { name, bio, niche, brandVoice, preferredPlatforms } = req.body;
   const userId = req.dbUser.id;
-
-  // Check username uniqueness if changing
-  if (username && username !== req.dbUser.username) {
-    const existing = await UserRepository.findByUsername(username.toLowerCase());
-    if (existing) {
-      return errorResponse(res, "Username is already taken", 409);
-    }
-  }
 
   const updated = await UserRepository.update(userId, {
     ...(name !== undefined && { name }),
@@ -32,7 +24,6 @@ export const updateMe = asyncWrapper(async (req, res) => {
     ...(niche !== undefined && { niche }),
     ...(brandVoice !== undefined && { brandVoice }),
     ...(preferredPlatforms !== undefined && { preferredPlatforms }),
-    ...(username !== undefined && { username: username.toLowerCase() }),
   });
 
   return successResponse(res, { user: updated }, "Profile updated");
@@ -42,36 +33,24 @@ export const updateMe = asyncWrapper(async (req, res) => {
  * POST /api/v1/users/complete-onboarding  (protected)
  */
 export const completeOnboarding = asyncWrapper(async (req, res) => {
-  const { niche, brandVoice, preferredPlatforms, username } = req.body;
+  const { niche, brandVoice, preferredPlatforms } = req.body;
   const userId = req.dbUser.id;
-
-  if (!username) return errorResponse(res, "Username is required", 400);
-
-  const existing = await UserRepository.findByUsername(username.toLowerCase());
-  if (existing && existing.id !== userId) {
-    return errorResponse(res, "Username is already taken", 409);
-  }
 
   const updated = await UserRepository.update(userId, {
     niche: niche || "",
     brandVoice: brandVoice || "professional",
     preferredPlatforms: preferredPlatforms || [],
-    username: username.toLowerCase(),
     onboardingCompleted: true,
   });
 
-  return successResponse(res, { user: updated }, "Onboarding complete");
+  return successResponse(res, { user: updated }, "Studio setup complete");
 });
 
 /**
- * POST /api/v1/users/check-username  (public)
+ * POST /api/v1/users/check-username  (public - deprecated)
  */
 export const checkUsername = asyncWrapper(async (req, res) => {
-  const { username } = req.body;
-  if (!username) return errorResponse(res, "Username is required", 400);
-
-  const existing = await UserRepository.findByUsername(username.toLowerCase());
-  return successResponse(res, { available: !existing });
+  return successResponse(res, { available: true });
 });
 
 /**

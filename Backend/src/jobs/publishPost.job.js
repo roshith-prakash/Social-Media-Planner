@@ -78,6 +78,10 @@ if (agenda) {
           }
         }
 
+        if (!externalId) {
+          throw new Error(`Publish completed without returning a platform media ID for ${platform}.`);
+        }
+
         await prisma.scheduledPost.update({
           where: { id: post.id },
           data: { status: "published", externalPostId: externalId, errorMsg: null },

@@ -151,14 +151,14 @@ export default function AnalyticsPage() {
         }}
       >
         {/* Total Views */}
-        <div className="glass-card animate-fadeInUp" style={{ padding: "20px 24px" }}>
+        <div className="card animate-fadeInUp" style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Total Views</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <EyeIcon style={{ width: 18, height: 18, color: "var(--text-accent)" }} />
+            <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>Total Views</span>
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--accent-sky-subtle)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <EyeIcon style={{ width: 18, height: 18, color: "var(--accent-blue-dark)" }} />
             </div>
           </div>
-          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>
+          <p style={{ fontSize: 28, fontWeight: 800, margin: 0, color: "var(--ink)" }}>
             {metrics?.totalViews != null ? metrics.totalViews.toLocaleString() : 0}
           </p>
           <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6, display: "block" }}>
@@ -171,14 +171,14 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Watch Time / Duration */}
-        <div className="glass-card animate-fadeInUp" style={{ padding: "20px 24px" }}>
+        <div className="card animate-fadeInUp" style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Watch Time</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(168,85,247,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ClockIcon style={{ width: 18, height: 18, color: "#c084fc" }} />
+            <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>Watch Time</span>
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--accent-lilac-subtle)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ClockIcon style={{ width: 18, height: 18, color: "var(--accent-lilac-dark)" }} />
             </div>
           </div>
-          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>
+          <p style={{ fontSize: 28, fontWeight: 800, margin: 0, color: "var(--ink)" }}>
             {metrics?.estimatedMinutesWatched != null ? `${metrics.estimatedMinutesWatched} min` : "0 min"}
           </p>
           <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6, display: "block" }}>
@@ -189,14 +189,14 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Total Likes */}
-        <div className="glass-card animate-fadeInUp" style={{ padding: "20px 24px" }}>
+        <div className="card animate-fadeInUp" style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Likes & Upvotes</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(34,197,94,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <HandThumbUpIcon style={{ width: 18, height: 18, color: "#4ade80" }} />
+            <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>Likes & Reactions</span>
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--brand-coral-subtle)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <HandThumbUpIcon style={{ width: 18, height: 18, color: "var(--brand-coral)" }} />
             </div>
           </div>
-          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>
+          <p style={{ fontSize: 28, fontWeight: 800, margin: 0, color: "var(--ink)" }}>
             {metrics?.likes != null ? metrics.likes.toLocaleString() : 0}
           </p>
           <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6, display: "block" }}>
@@ -205,14 +205,14 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Total Comments */}
-        <div className="glass-card animate-fadeInUp" style={{ padding: "20px 24px" }}>
+        <div className="card animate-fadeInUp" style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>Comments & Feedback</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(245,158,11,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ChatBubbleBottomCenterTextIcon style={{ width: 18, height: 18, color: "#fbbf24" }} />
+            <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>Comments & Feedback</span>
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--accent-mint-subtle)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ChatBubbleBottomCenterTextIcon style={{ width: 18, height: 18, color: "var(--accent-mint-dark)" }} />
             </div>
           </div>
-          <p style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>
+          <p style={{ fontSize: 28, fontWeight: 800, margin: 0, color: "var(--ink)" }}>
             {metrics?.comments != null ? metrics.comments.toLocaleString() : 0}
           </p>
           <span style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6, display: "block" }}>
@@ -223,25 +223,25 @@ export default function AnalyticsPage() {
 
       {/* Platform Breakdown (if published) */}
       {isPublished && (platformBreakdown?.youtube || platformBreakdown?.instagram) && (
-        <div className="glass-card" style={{ padding: "24px", marginBottom: 28, borderRadius: 16 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 16px" }}>Platform Performance Breakdown</h3>
+        <div className="card" style={{ padding: "24px", marginBottom: 28, borderRadius: 16 }}>
+          <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 16px", color: "var(--ink)" }}>Platform Performance Breakdown</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
             {platformBreakdown.youtube && (
               <div
                 style={{
-                  padding: "16px 20px",
+                  padding: "18px 20px",
                   borderRadius: 12,
-                  background: "rgba(239, 68, 68, 0.05)",
-                  border: "1px solid rgba(239, 68, 68, 0.2)",
+                  background: "var(--surface-secondary)",
+                  border: "1px solid var(--border)",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: "#ef4444" }}>YouTube Video</span>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#FF0033" }}>YouTube Video</span>
                   <a
                     href={`https://www.youtube.com/watch?v=${platformBreakdown.youtube.videoId}`}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ fontSize: 12, color: "var(--text-accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}
+                    style={{ fontSize: 12, color: "var(--brand-coral)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}
                   >
                     Watch on YouTube <ArrowTopRightOnSquareIcon style={{ width: 12, height: 12 }} />
                   </a>
@@ -249,15 +249,15 @@ export default function AnalyticsPage() {
                 <div style={{ display: "flex", gap: 20 }}>
                   <div>
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Views</span>
-                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.youtube.views.toLocaleString()}</p>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0", color: "var(--ink)" }}>{platformBreakdown.youtube.views.toLocaleString()}</p>
                   </div>
                   <div>
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Likes</span>
-                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.youtube.likes.toLocaleString()}</p>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0", color: "var(--ink)" }}>{platformBreakdown.youtube.likes.toLocaleString()}</p>
                   </div>
                   <div>
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Comments</span>
-                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.youtube.comments.toLocaleString()}</p>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0", color: "var(--ink)" }}>{platformBreakdown.youtube.comments.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -266,10 +266,10 @@ export default function AnalyticsPage() {
             {platformBreakdown.instagram && (
               <div
                 style={{
-                  padding: "16px 20px",
+                  padding: "18px 20px",
                   borderRadius: 12,
-                  background: "rgba(225, 48, 108, 0.05)",
-                  border: "1px solid rgba(225, 48, 108, 0.2)",
+                  background: "var(--surface-secondary)",
+                  border: "1px solid var(--border)",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -279,7 +279,7 @@ export default function AnalyticsPage() {
                       href={platformBreakdown.instagram.permalink}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ fontSize: 12, color: "var(--text-accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}
+                      style={{ fontSize: 12, color: "var(--brand-coral)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}
                     >
                       View on Instagram <ArrowTopRightOnSquareIcon style={{ width: 12, height: 12 }} />
                     </a>
@@ -290,15 +290,15 @@ export default function AnalyticsPage() {
                 <div style={{ display: "flex", gap: 20 }}>
                   <div>
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Views/Plays</span>
-                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.instagram.views.toLocaleString()}</p>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0", color: "var(--ink)" }}>{platformBreakdown.instagram.views.toLocaleString()}</p>
                   </div>
                   <div>
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Likes</span>
-                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.instagram.likes.toLocaleString()}</p>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0", color: "var(--ink)" }}>{platformBreakdown.instagram.likes.toLocaleString()}</p>
                   </div>
                   <div>
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Comments</span>
-                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0" }}>{platformBreakdown.instagram.comments.toLocaleString()}</p>
+                    <p style={{ fontSize: 20, fontWeight: 700, margin: "2px 0 0", color: "var(--ink)" }}>{platformBreakdown.instagram.comments.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -308,10 +308,10 @@ export default function AnalyticsPage() {
       )}
 
       {/* Chart: Views Over Time */}
-      <div className="glass-card" style={{ padding: "28px", marginBottom: 28, borderRadius: 16 }}>
+      <div className="card" style={{ padding: "28px", marginBottom: 28, borderRadius: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
           <div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>Daily Engagement & Views</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Daily Engagement & Views</h3>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "4px 0 0" }}>
               {isPublished ? "Performance trajectory over the last 7 to 30 days" : "Baseline timeline preview"}
             </p>
@@ -323,27 +323,28 @@ export default function AnalyticsPage() {
             <AreaChart data={chartData || []} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="viewsGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+                  <stop offset="5%" stopColor="#F05A43" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#F05A43" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-              <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} />
-              <YAxis stroke="#64748b" fontSize={12} tickLine={false} allowDecimals={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={12} tickLine={false} />
+              <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} allowDecimals={false} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "rgba(15, 15, 30, 0.95)",
-                  borderColor: "rgba(99, 102, 241, 0.3)",
+                  backgroundColor: "var(--surface)",
+                  borderColor: "var(--border)",
                   borderRadius: "10px",
                   fontSize: "13px",
-                  color: "#fff",
+                  color: "var(--ink)",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
                 }}
               />
               <Area
                 type="monotone"
                 dataKey="views"
-                stroke="#6366f1"
-                strokeWidth={3}
+                stroke="#F05A43"
+                strokeWidth={2.5}
                 fillOpacity={1}
                 fill="url(#viewsGradient)"
               />
@@ -353,8 +354,8 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Cross-platform Publication Status */}
-      <div className="glass-card" style={{ padding: 24, borderRadius: 16 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>
+      <div className="card" style={{ padding: 24, borderRadius: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, color: "var(--ink)" }}>
           Publishing & Distribution Network
         </h3>
         {platforms && platforms.length > 0 ? (
@@ -368,8 +369,8 @@ export default function AnalyticsPage() {
                   justifyContent: "space-between",
                   padding: "12px 16px",
                   borderRadius: 10,
-                  background: "rgba(255, 255, 255, 0.03)",
-                  border: "1px solid var(--border-subtle)",
+                  background: "var(--surface-secondary)",
+                  border: "1px solid var(--border)",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -380,13 +381,13 @@ export default function AnalyticsPage() {
                       textTransform: "uppercase",
                       padding: "3px 8px",
                       borderRadius: 6,
-                      background: p.platform === "instagram" ? "rgba(225, 48, 108, 0.2)" : "rgba(99, 102, 241, 0.2)",
-                      color: p.platform === "instagram" ? "#E1306C" : "var(--text-accent)",
+                      background: p.platform === "instagram" ? "#FFF0F4" : "#FFF0F0",
+                      color: p.platform === "instagram" ? "#E1306C" : "#FF0033",
                     }}
                   >
                     {p.platform}
                   </span>
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "var(--ink)" }}>
                     Scheduled / Published: {new Date(p.scheduledAt).toLocaleDateString()}
                   </span>
                 </div>

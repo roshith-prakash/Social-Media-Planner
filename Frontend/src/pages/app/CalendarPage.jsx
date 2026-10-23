@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay } from "date-fns";
+import { format, parse, startOfWeek, getDay, isSameDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { getScheduledPosts, cancelScheduledPost, schedulePost, publishNow } from "../../api/scheduleApi";
@@ -18,8 +18,14 @@ import {
   BoltIcon,
   ArrowPathIcon,
   InformationCircleIcon,
+  CheckIcon,
+  DocumentDuplicateIcon,
+  ArrowTopRightOnSquareIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
+import { PlatformIcon, YouTubeLogo, InstagramLogo } from "../../components/SocialLogos";
 
 const locales = {
   "en-US": enUS,
@@ -34,19 +40,635 @@ const localizer = dateFnsLocalizer({
 });
 
 const PLATFORM_COLORS = {
-  youtube: "#ef4444",
+  youtube: "#FF0033",
   instagram: "#E1306C",
+  project: "#7152BC",
+  general: "#F05A43",
 };
 
+// ── Compact Event Thumbnail with Fallbacks ──────────────────────────────────────
+function EventThumbnail({ event }) {
+  const [imgError, setImgError] = useState(false);
+
+  const thumbUrl = useMemo(() => {
+    if (event.thumbnailUrl && event.thumbnailUrl.trim() !== "") {
+      return event.thumbnailUrl;
+    }
+    const cdn = event.videoUrl || event.project?.cloudinaryUrl || event.project?.videoUrl;
+    if (cdn && typeof cdn === "string") {
+      return cdn.replace(/\.[^/.]+$/, ".jpg");
+    }
+    return null;
+  }, [event.thumbnailUrl, event.videoUrl, event.project]);
+
+  const videoUrl = event.videoUrl || event.project?.cloudinaryUrl || event.project?.videoUrl;
+
+  if (thumbUrl && !imgError) {
+    return (
+      <img
+        src={thumbUrl}
+        alt={event.title}
+        onError={() => setImgError(true)}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          borderRadius: 8,
+        }}
+      />
+    );
+  }
+
+  if (videoUrl) {
+    return (
+      <video
+        src={`${videoUrl}#t=0.5`}
+        preload="metadata"
+        muted
+        playsInline
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          borderRadius: 8,
+          background: "#000",
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        borderRadius: 8,
+        background: "var(--surface-secondary)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--text-muted)",
+      }}
+    >
+      <VideoCameraIcon style={{ width: 24, height: 24 }} />
+    </div>
+  );
+}
+
+// ── Custom Event Pill Component ────────────────────────────────────────────────
+function CustomEvent({ event }) {
+  const isYouTube = event.platform === "youtube";
+  const isInstagram = event.platform === "instagram";
+  const isProject = event.type === "project";
+
+  const bg = isYouTube
+    ? "rgba(255, 0, 51, 0.12)"
+    : isInstagram
+    ? "rgba(225, 48, 108, 0.12)"
+    : "rgba(113, 82, 188, 0.12)";
+
+  const border = isYouTube
+    ? "#FF0033"
+    : isInstagram
+    ? "#E1306C"
+    : "#7152BC";
+
+  const textColor = isYouTube
+    ? "#B30024"
+    : isInstagram
+    ? "#A81E4E"
+    : "var(--lilac-dark)";
+
+  const timeStr = event.start ? format(event.start, "h:mmaaa") : "";
+
+  return (
+    <div
+      className="custom-calendar-event"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        width: "100%",
+        height: "100%",
+        padding: "3px 6px",
+        borderRadius: 6,
+        background: bg,
+        border: `1.5px solid ${border}`,
+        color: textColor,
+        fontSize: 11.5,
+        fontWeight: 650,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "all 0.15s ease",
+      }}
+      title={`${event.title} (${timeStr}) — Click to view details`}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 5, width: "100%", overflow: "hidden" }}>
+        <PlatformIcon platform={event.platform} size={12} style={{ flexShrink: 0 }} />
+        <span style={{ fontSize: 10.5, opacity: 0.9, fontWeight: 750, flexShrink: 0 }}>{timeStr}</span>
+        <span className="event-month-title" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {event.title}
+        </span>
+        {event.status === "published" && (
+          <span
+            title="Published"
+            style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", flexShrink: 0 }}
+          />
+        )}
+        {event.status === "pending" && (
+          <span
+            title="Scheduled"
+            style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0 }}
+          />
+        )}
+      </div>
+      <div
+        className="event-week-title"
+        style={{
+          marginTop: 2,
+          fontSize: 11.5,
+          fontWeight: 750,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          width: "100%",
+          lineHeight: 1.25,
+        }}
+      >
+        {event.title}
+      </div>
+    </div>
+  );
+}
+
+// ── Custom ReachAI Toolbar Component ───────────────────────────────────────────
+function CustomToolbar(props) {
+  const { onNavigate, onView, view, currentDate } = props;
+
+  const goToBack = () => onNavigate("PREV");
+  const goToNext = () => onNavigate("NEXT");
+  const goToCurrent = () => onNavigate("TODAY");
+
+  const viewNames = [
+    { key: "month", label: "Month" },
+    { key: "week", label: "Week" },
+    { key: "day", label: "Day" },
+    { key: "agenda", label: "Agenda" },
+  ];
+
+  const activeView = view || "month";
+
+  const weekStart = currentDate ? startOfWeek(currentDate, { weekStartsOn: 0 }) : new Date();
+  const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+
+  let displayTitle = "";
+  if (activeView === "week") {
+    const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
+    displayTitle = sameMonth
+      ? `${format(weekStart, "MMMM d")} – ${format(weekEnd, "d, yyyy")}`
+      : `${format(weekStart, "MMM d")} – ${format(weekEnd, "MMM d, yyyy")}`;
+  } else if (activeView === "day") {
+    displayTitle = currentDate ? format(currentDate, "EEEE, MMMM d, yyyy") : "";
+  } else {
+    displayTitle = currentDate ? format(currentDate, "MMMM yyyy") : "";
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "16px 20px",
+        borderBottom: "1px solid var(--border)",
+        flexWrap: "wrap",
+        gap: 14,
+        background: "var(--surface)",
+      }}
+    >
+      {/* Navigation Buttons */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={goToCurrent}
+          style={{ fontWeight: 650, fontSize: 13, padding: "6px 14px", cursor: "pointer" }}
+        >
+          Today
+        </button>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={goToBack}
+            style={{ width: 34, height: 34, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+            aria-label="Previous"
+            title="Previous"
+          >
+            <ChevronLeftIcon style={{ width: 16, height: 16 }} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={goToNext}
+            style={{ width: 34, height: 34, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+            aria-label="Next"
+            title="Next"
+          >
+            <ChevronRightIcon style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+      </div>
+
+      {/* Title */}
+      <div>
+        <h2
+          style={{
+            fontSize: 20,
+            fontWeight: 800,
+            color: "var(--ink)",
+            letterSpacing: "-0.02em",
+            margin: 0,
+          }}
+        >
+          {displayTitle}
+        </h2>
+      </div>
+
+      {/* View Switcher Pills */}
+      <div className="tabs-list" style={{ padding: 3, margin: 0 }}>
+        {viewNames.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            className={`tab-trigger ${activeView === v.key ? "active" : ""}`}
+            onClick={() => onView(v.key)}
+            style={{ fontSize: 12, padding: "5px 12px", cursor: "pointer" }}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Dedicated 7-Day Social Media Planner Board ─────────────────────────────────
+function WeeklyPlannerBoard({ currentDate, events, onSelectEvent, onSelectDate, onAddPost }) {
+  const weekStart = startOfWeek(currentDate || new Date(), { weekStartsOn: 0 }); // Sunday
+  const days = useMemo(() => {
+    return Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [weekStart]);
+
+  const today = new Date();
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(7, minmax(140px, 1fr))",
+        background: "var(--surface)",
+        minHeight: 640,
+        overflowX: "auto",
+      }}
+    >
+      {days.map((dayDate, idx) => {
+        const isCurrentDay = isSameDay(dayDate, today);
+        const dayEvents = events
+          .filter((e) => isSameDay(new Date(e.start), dayDate))
+          .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+        return (
+          <div
+            key={idx}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              borderRight: idx < 6 ? "1px solid var(--border)" : "none",
+              background: isCurrentDay ? "rgba(240, 90, 67, 0.025)" : "transparent",
+              minHeight: 640,
+            }}
+          >
+            {/* Column Day Header */}
+            <div
+              onClick={() => onSelectDate({ start: dayDate })}
+              style={{
+                padding: "12px 8px",
+                borderBottom: "1px solid var(--border)",
+                background: isCurrentDay ? "rgba(240, 90, 67, 0.08)" : "var(--surface-secondary)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+                cursor: "pointer",
+              }}
+              title="Click to view all events on this day"
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 750,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    color: isCurrentDay ? "var(--brand-coral)" : "var(--text-secondary)",
+                  }}
+                >
+                  {format(dayDate, "EEE")}
+                </span>
+                {isCurrentDay && (
+                  <span
+                    style={{
+                      fontSize: 9.5,
+                      fontWeight: 750,
+                      padding: "1px 5px",
+                      borderRadius: 99,
+                      background: "var(--brand-coral)",
+                      color: "#fff",
+                    }}
+                  >
+                    Today
+                  </span>
+                )}
+              </div>
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: isCurrentDay ? "var(--brand-coral)" : "var(--ink)",
+                  lineHeight: 1,
+                }}
+              >
+                {format(dayDate, "d")}
+              </div>
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  color: "var(--text-muted)",
+                }}
+              >
+                {dayEvents.length === 1 ? "1 post" : `${dayEvents.length} posts`}
+              </span>
+            </div>
+
+            {/* Posts List for the Day */}
+            <div
+              style={{
+                flex: 1,
+                padding: "10px 8px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              {dayEvents.length === 0 ? (
+                <div
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "20px 6px",
+                    borderRadius: 8,
+                    border: "1.5px dashed var(--border)",
+                    color: "var(--text-muted)",
+                    textAlign: "center",
+                    gap: 6,
+                    minHeight: 150,
+                  }}
+                >
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0 }}>No posts</p>
+                  <button
+                    type="button"
+                    onClick={() => onAddPost(dayDate)}
+                    style={{
+                      border: "none",
+                      background: "none",
+                      color: "var(--brand-coral)",
+                      fontSize: 11.5,
+                      fontWeight: 650,
+                      cursor: "pointer",
+                      padding: "2px 4px",
+                    }}
+                  >
+                    + Schedule
+                  </button>
+                </div>
+              ) : (
+                dayEvents.map((evt) => {
+                  const isYt = evt.platform === "youtube";
+                  const isIg = evt.platform === "instagram";
+                  const pfColor = isYt ? "#FF0033" : isIg ? "#E1306C" : "#7152BC";
+                  const pfLabel = isYt ? "YouTube" : isIg ? "Instagram" : "Project";
+
+                  return (
+                    <div
+                      key={evt.id}
+                      onClick={() => onSelectEvent(evt)}
+                      style={{
+                        padding: "10px 10px",
+                        borderRadius: 9,
+                        background: "var(--surface)",
+                        border: `1.5px solid ${pfColor}40`,
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                        e.currentTarget.style.boxShadow = `0 4px 12px ${pfColor}25`;
+                        e.currentTarget.style.borderColor = pfColor;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "none";
+                        e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.04)";
+                        e.currentTarget.style.borderColor = `${pfColor}40`;
+                      }}
+                    >
+                      {/* Top Row: Platform Pill + Time */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                        <span
+                          style={{
+                            fontSize: 10.5,
+                            fontWeight: 750,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            background: `${pfColor}15`,
+                            color: pfColor,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <PlatformIcon platform={evt.platform} size={13} style={{ flexShrink: 0 }} />
+                          <span>{pfLabel}</span>
+                        </span>
+
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-soft)" }}>
+                          {format(new Date(evt.start), "h:mm a")}
+                        </span>
+                      </div>
+
+                      {/* Middle Row: Title */}
+                      <p
+                        style={{
+                          fontSize: 12.5,
+                          fontWeight: 750,
+                          color: "var(--ink)",
+                          margin: 0,
+                          lineHeight: 1.3,
+                          overflow: "hidden",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                        }}
+                      >
+                        {evt.title}
+                      </p>
+
+                      {/* Bottom Row: Status Indicator */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+                        {evt.status === "published" && (
+                          <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--status-success-fg)", display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-success-fg)" }} />
+                            Published
+                          </span>
+                        )}
+                        {evt.status === "pending" && (
+                          <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--status-warning-fg)", display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-warning-fg)" }} />
+                            Scheduled
+                          </span>
+                        )}
+                        {evt.status === "failed" && (
+                          <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--status-error-fg)", display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-error-fg)" }} />
+                            Failed
+                          </span>
+                        )}
+                        {evt.status === "deleted_on_platform" && (
+                          <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--status-error-fg)", display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-error-fg)" }} />
+                            Deleted
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Add Post Button at bottom */}
+              <button
+                type="button"
+                onClick={() => onAddPost(dayDate)}
+                style={{
+                  marginTop: "auto",
+                  padding: "6px 8px",
+                  border: "1px dashed var(--border)",
+                  borderRadius: 6,
+                  background: "transparent",
+                  color: "var(--text-secondary)",
+                  fontSize: 11,
+                  fontWeight: 650,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4,
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "var(--brand-coral)";
+                  e.currentTarget.style.color = "var(--brand-coral)";
+                  e.currentTarget.style.background = "var(--brand-coral-subtle)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--border)";
+                  e.currentTarget.style.color = "var(--text-secondary)";
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <PlusIcon style={{ width: 12, height: 12 }} />
+                <span>Add Post</span>
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Main CalendarPage Component ────────────────────────────────────────────────
 export default function CalendarPage() {
   const navigate = useNavigate();
   const { dbUser } = useUser();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState(null);
+
+  // Controlled Calendar Navigation & View State
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentView, setCurrentView] = useState("month");
+
+  const handleNavigate = (newDate, view, action) => {
+    if (newDate instanceof Date && !isNaN(newDate.getTime())) {
+      setCurrentDate(newDate);
+    } else if (action === "TODAY") {
+      setCurrentDate(new Date());
+    } else if (action === "PREV") {
+      if (currentView === "month") {
+        setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+      } else if (currentView === "week") {
+        setCurrentDate((d) => new Date(d.getTime() - 7 * 24 * 60 * 60 * 1000));
+      } else if (currentView === "day") {
+        setCurrentDate((d) => new Date(d.getTime() - 24 * 60 * 60 * 1000));
+      } else {
+        setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+      }
+    } else if (action === "NEXT") {
+      if (currentView === "month") {
+        setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+      } else if (currentView === "week") {
+        setCurrentDate((d) => new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000));
+      } else if (currentView === "day") {
+        setCurrentDate((d) => new Date(d.getTime() + 24 * 60 * 60 * 1000));
+      } else {
+        setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+      }
+    }
+  };
+
+  const handleViewChange = (newView) => {
+    setCurrentView(newView);
+  };
+
+  // Date Modal State: clicking on any date cell or event triggers this!
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDateModal, setShowDateModal] = useState(false);
+
+  // Schedule Modal State
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [modalMode, setModalMode] = useState("now"); // "now" | "schedule"
+  const [modalMode, setModalMode] = useState("schedule"); // "now" | "schedule"
   const [projects, setProjects] = useState([]);
+
+  // Filter: "all" | "youtube" | "instagram" | "project"
+  const [platformFilter, setPlatformFilter] = useState("all");
+
+  // Publishing lock state
+  const [publishingId, setPublishingId] = useState(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
 
   // Connected accounts check
   const isYouTubeConnected = Boolean(dbUser?.youtubeAccessToken || dbUser?.youtubeChannelName || dbUser?.youtubeChannelId);
@@ -64,10 +686,6 @@ export default function CalendarPage() {
     scheduledAt: "",
     content: "",
   });
-  // publishingId = the specific post.rawId currently being published (null = none)
-  const [publishingId, setPublishingId] = useState(null);
-  // formSubmitting = the new-post modal form is in-flight
-  const [formSubmitting, setFormSubmitting] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -83,26 +701,31 @@ export default function CalendarPage() {
 
       const calendarEvents = [];
 
-      // Add scheduled posts
+      // 1. Scheduled posts
       scheduled.forEach((item) => {
         const start = new Date(item.scheduledAt);
-        const end = new Date(start.getTime() + 30 * 60 * 1000);
+        const end = new Date(start.getTime() + 50 * 60 * 1000); // 50 mins for clear visibility in time grids
         calendarEvents.push({
           id: `sched-${item.id}`,
           rawId: item.id,
           type: "scheduled",
-          title: `[${item.platform.toUpperCase()}] ${item.project?.title || "Post"}`,
+          title: item.project?.title || "Scheduled Post",
           start,
           end,
           platform: item.platform,
           status: item.status,
           content: item.content || item.draft?.editedContent || "",
+          thumbnailUrl: item.project?.thumbnailUrl || null,
+          videoUrl: item.project?.cloudinaryUrl || null,
           projectId: item.projectId,
           analysisId: item.project?.analysis?.id,
+          youtubeVideoId: item.project?.youtubeVideoId,
+          instagramMediaId: item.project?.instagramMediaId,
+          project: item.project,
         });
       });
 
-      // Add completed video projects
+      // 2. Video projects
       userProjects.forEach((prj) => {
         if (prj.createdAt) {
           const date = new Date(prj.createdAt);
@@ -110,13 +733,16 @@ export default function CalendarPage() {
             id: `proj-${prj.id}`,
             rawId: prj.id,
             type: "project",
-            title: `🎬 ${prj.title}`,
+            title: prj.title || "Video Ingest",
             start: date,
-            end: new Date(date.getTime() + 30 * 60 * 1000),
-            platform: "general",
+            end: new Date(date.getTime() + 50 * 60 * 1000),
+            platform: "project",
             status: prj.status,
+            thumbnailUrl: prj.thumbnailUrl || null,
+            videoUrl: prj.cloudinaryUrl || prj.videoUrl || null,
             projectId: prj.id,
             analysisId: prj.analysis?.id,
+            project: prj,
           });
         }
       });
@@ -133,8 +759,70 @@ export default function CalendarPage() {
     fetchData();
   }, []);
 
+  // Filtered events
+  const filteredEvents = useMemo(() => {
+    if (platformFilter === "all") return events;
+    if (platformFilter === "youtube") return events.filter((e) => e.platform === "youtube");
+    if (platformFilter === "instagram") return events.filter((e) => e.platform === "instagram");
+    if (platformFilter === "project") return events.filter((e) => e.type === "project");
+    return events;
+  }, [events, platformFilter]);
+
+  // Events on currently selected date
+  const selectedDateEvents = useMemo(() => {
+    if (!selectedDate) return [];
+    return events
+      .filter((e) => isSameDay(new Date(e.start), selectedDate))
+      .sort((a, b) => new Date(a.start) - new Date(b.start));
+  }, [events, selectedDate]);
+
+  // Click date slot on calendar
+  const handleSelectSlot = (slotInfo) => {
+    if (slotInfo.start) {
+      setSelectedDate(slotInfo.start);
+      setShowDateModal(true);
+    }
+  };
+
+  // Click event pill
   const handleSelectEvent = (event) => {
-    setSelectedEvent(event);
+    if (event.start) {
+      setSelectedDate(event.start);
+      setShowDateModal(true);
+    }
+  };
+
+  // Click "+X more"
+  const handleShowMore = (evts, date) => {
+    setSelectedDate(date);
+    setShowDateModal(true);
+  };
+
+  // Open schedule modal with pre-selected date
+  const openScheduleForDate = (date, prefillProjectId = "") => {
+    const d = date || new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const timeStr = `${year}-${month}-${day}T10:00`;
+
+    setFormState({
+      projectId: prefillProjectId || (projects[0]?.id || ""),
+      platform: isYouTubeConnected ? "youtube" : isInstagramConnected ? "instagram" : "youtube",
+      scheduledAt: timeStr,
+      content: "",
+    });
+    setModalMode("schedule");
+    setShowDateModal(false);
+    setShowScheduleModal(true);
+  };
+
+  const handleCopyCaption = (id, text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    toast.success("Caption copied to clipboard!");
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleCancelPost = async (id) => {
@@ -142,13 +830,11 @@ export default function CalendarPage() {
     try {
       await cancelScheduledPost(id);
       toast.success("Scheduled post cancelled");
-      setSelectedEvent(null);
       fetchData();
     } catch (err) {
       toast.error(err.message || "Failed to cancel");
     }
   };
-
 
   const handlePublishNow = async (event) => {
     if (!event.projectId) return toast.error("Missing project ID");
@@ -157,7 +843,6 @@ export default function CalendarPage() {
     }
     if (!window.confirm(`Publish this post immediately to ${event.platform.toUpperCase()}?`)) return;
 
-    // Only lock this specific post — not others
     setPublishingId(event.rawId);
     try {
       const res = await publishNow({
@@ -169,7 +854,6 @@ export default function CalendarPage() {
         await cancelScheduledPost(event.rawId).catch(() => {});
       }
       toast.success(res.data?.message || `Published now to ${event.platform.toUpperCase()}!`);
-      setSelectedEvent(null);
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || err.response?.data?.error || err.message || "Publishing failed");
@@ -218,85 +902,216 @@ export default function CalendarPage() {
     }
   };
 
-  const eventStyleGetter = (event) => {
-    const color = PLATFORM_COLORS[event.platform] || "#6366f1";
-    return {
-      style: {
-        backgroundColor: `${color}25`,
-        border: `1px solid ${color}80`,
-        color: "#fff",
-        borderRadius: "6px",
-        fontSize: "12px",
-        padding: "2px 6px",
-      },
-    };
-  };
+  // Stats
+  const scheduledCount = events.filter((e) => e.type === "scheduled" && e.status === "pending").length;
+  const publishedCount = events.filter((e) => e.status === "published").length;
+  const projectCount = projects.length;
 
   return (
-    <div style={{ padding: "32px", maxWidth: 1200, margin: "0 auto" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 10, background: "var(--gradient-brand)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <CalendarDaysIcon style={{ width: 22, height: 22, color: "#fff" }} />
-            </div>
-            <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>
-                Content Calendar
-              </h1>
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
-                Visual planning, future scheduling, and multi-platform publishing timeline.
-              </p>
-            </div>
+    <div style={{ padding: "32px 36px", maxWidth: 1240, margin: "0 auto" }}>
+      {/* ── Page Header & Top Stats ────────────────────────────────────────── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 24,
+          flexWrap: "wrap",
+          gap: 16,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "var(--radius-md)",
+              background: "var(--brand-coral)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(240, 90, 67, 0.25)",
+              color: "#fff",
+            }}
+          >
+            <CalendarDaysIcon style={{ width: 24, height: 24 }} />
+          </div>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--ink)", margin: 0, letterSpacing: "-0.02em" }}>
+              Content Calendar
+            </h1>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "2px 0 0" }}>
+              Click any date to view scheduled posts, analyze details, or schedule content.
+            </p>
           </div>
         </div>
 
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={() => setShowScheduleModal(true)}
-          style={{ display: "flex", alignItems: "center", gap: 8 }}
-        >
-          <PlusIcon style={{ width: 16, height: 16 }} />
-          Schedule New Post
-        </button>
+        {/* Quick Actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            className="btn btn-primary"
+            onClick={() => openScheduleForDate(new Date())}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: "var(--radius-md)" }}
+          >
+            <PlusIcon style={{ width: 16, height: 16, strokeWidth: 2.5 }} />
+            Schedule New Post
+          </button>
+        </div>
       </div>
 
-      {/* Calendar container with custom dark styling */}
+      {/* ── Metric Summary & Filter Tabs ──────────────────────────────────── */}
       <div
-        className="glass-card"
         style={{
-          padding: "24px",
-          minHeight: 650,
-          background: "rgba(18, 18, 38, 0.75)",
-          backdropFilter: "blur(20px)",
-          border: "1px solid var(--border-subtle)",
-          borderRadius: 16,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 20,
+          flexWrap: "wrap",
+          gap: 14,
         }}
       >
-        <Calendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: 620 }}
-          eventPropGetter={eventStyleGetter}
-          onSelectEvent={handleSelectEvent}
-          views={["month", "week", "day"]}
-          defaultView="month"
-        />
+        {/* Metric Badges */}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              padding: "7px 14px",
+              borderRadius: "var(--radius-md)",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "var(--ink-soft)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              boxShadow: "var(--shadow-subtle)",
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
+            <span>Scheduled: <strong>{scheduledCount}</strong></span>
+          </div>
+
+          <div
+            style={{
+              padding: "7px 14px",
+              borderRadius: "var(--radius-md)",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "var(--ink-soft)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              boxShadow: "var(--shadow-subtle)",
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981" }} />
+            <span>Published: <strong>{publishedCount}</strong></span>
+          </div>
+
+          <div
+            style={{
+              padding: "7px 14px",
+              borderRadius: "var(--radius-md)",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "var(--ink-soft)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              boxShadow: "var(--shadow-subtle)",
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--lilac-dark)" }} />
+            <span>Video Ingests: <strong>{projectCount}</strong></span>
+          </div>
+        </div>
+
+        {/* Platform Filters */}
+        <div className="tabs-list" style={{ padding: 3, margin: 0 }}>
+          {[
+            { id: "all", label: "All Content" },
+            { id: "youtube", label: "YouTube", icon: <YouTubeLogo size={14} /> },
+            { id: "instagram", label: "Instagram", icon: <InstagramLogo size={14} /> },
+            { id: "project", label: "Projects", icon: <PlatformIcon platform="project" size={14} /> },
+          ].map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`tab-trigger ${platformFilter === f.id ? "active" : ""}`}
+              onClick={() => setPlatformFilter(f.id)}
+              style={{ fontSize: 12, padding: "5px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              {f.icon}
+              <span>{f.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Event Details Modal */}
-      {selectedEvent && (
+      {/* ── Calendar Card Container ────────────────────────────────────────── */}
+      <div
+        className="card"
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-xl)",
+          boxShadow: "var(--shadow-card)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Unified Toolbar for All Calendar Views */}
+        <CustomToolbar
+          currentDate={currentDate}
+          view={currentView}
+          onNavigate={(action) => handleNavigate(null, currentView, action)}
+          onView={handleViewChange}
+        />
+
+        {/* Dynamic View: Weekly Social Media Board or Full Calendar (Month / Day / Agenda) */}
+        {currentView === "week" ? (
+          <WeeklyPlannerBoard
+            currentDate={currentDate}
+            events={filteredEvents}
+            onSelectEvent={handleSelectEvent}
+            onSelectDate={handleSelectSlot}
+            onAddPost={openScheduleForDate}
+          />
+        ) : (
+          <Calendar
+            localizer={localizer}
+            events={filteredEvents}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: 720 }}
+            selectable={true}
+            toolbar={false}
+            scrollToTime={new Date(1970, 1, 1, 8, 0, 0)}
+            date={currentDate}
+            onNavigate={handleNavigate}
+            view={currentView}
+            onView={handleViewChange}
+            views={["month", "day", "agenda"]}
+            onSelectSlot={handleSelectSlot}
+            onSelectEvent={handleSelectEvent}
+            onShowMore={handleShowMore}
+            components={{
+              event: CustomEvent,
+            }}
+          />
+        )}
+      </div>
+
+      {/* ── DATE DETAILS MODAL (Opens when clicking any date or event!) ───── */}
+      {showDateModal && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
+            background: "var(--overlay)",
             backdropFilter: "blur(6px)",
             display: "flex",
             alignItems: "center",
@@ -304,142 +1119,412 @@ export default function CalendarPage() {
             zIndex: 100,
             padding: 20,
           }}
-          onClick={() => setSelectedEvent(null)}
+          onClick={() => setShowDateModal(false)}
         >
           <div
-            className="glass-card animate-scaleIn"
+            className="card animate-scaleIn"
             style={{
-              maxWidth: 520,
+              maxWidth: 620,
               width: "100%",
-              padding: 28,
-              background: "rgba(22, 22, 45, 0.95)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 16,
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-xl)",
+              boxShadow: "var(--shadow-modal)",
+              overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-              <div>
-                <span
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "20px 24px",
+                borderBottom: "1px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+                background: "var(--surface-secondary)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div
                   style={{
-                    fontSize: 11,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    fontWeight: 700,
-                    padding: "3px 8px",
-                    borderRadius: 6,
-                    background: `${PLATFORM_COLORS[selectedEvent.platform] || "#6366f1"}25`,
-                    color: PLATFORM_COLORS[selectedEvent.platform] || "#818cf8",
+                    width: 40,
+                    height: 40,
+                    borderRadius: "var(--radius-md)",
+                    background: "var(--brand-coral-subtle)",
+                    border: "1px solid var(--brand-coral-light)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--brand-coral)",
                   }}
                 >
-                  {selectedEvent.type === "scheduled" ? `${selectedEvent.platform} Post` : "Project Ingest"}
-                </span>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>
-                  {selectedEvent.title}
-                </h3>
+                  <CalendarDaysIcon style={{ width: 22, height: 22 }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--ink)", margin: 0 }}>
+                    {format(selectedDate, "EEEE, MMMM d, yyyy")}
+                  </h3>
+                  <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "2px 0 0" }}>
+                    {selectedDateEvents.length === 0
+                      ? "No content scheduled for this date"
+                      : `${selectedDateEvents.length} item${selectedDateEvents.length > 1 ? "s" : ""} recorded on this day`}
+                  </p>
+                </div>
               </div>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setSelectedEvent(null)}
-              >
-                <XMarkIcon style={{ width: 18, height: 18 }} />
-              </button>
-            </div>
 
-            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>
-              <strong>Date:</strong> {format(selectedEvent.start, "PPP 'at' p")}
-            </div>
-
-            {selectedEvent.content && (
-              <div
-                style={{
-                  background: "rgba(255, 255, 255, 0.04)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: 10,
-                  padding: "12px 14px",
-                  fontSize: 13,
-                  lineHeight: 1.6,
-                  maxHeight: 180,
-                  overflowY: "auto",
-                  whiteSpace: "pre-wrap",
-                  marginBottom: 16,
-                }}
-              >
-                {selectedEvent.content}
-              </div>
-            )}
-
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 20 }}>
-              {selectedEvent.analysisId && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => navigate(`/app/analysis/${selectedEvent.analysisId}`)}
+                  className="btn btn-primary btn-sm"
+                  onClick={() => openScheduleForDate(selectedDate)}
+                  style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}
                 >
-                  <SparklesIcon style={{ width: 14, height: 14 }} />
-                  View Analysis
+                  <PlusIcon style={{ width: 14, height: 14, strokeWidth: 2.5 }} />
+                  Schedule Post
                 </button>
-              )}
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ padding: 6, borderRadius: "50%" }}
+                  onClick={() => setShowDateModal(false)}
+                >
+                  <XMarkIcon style={{ width: 20, height: 20, color: "var(--text-secondary)" }} />
+                </button>
+              </div>
+            </div>
 
-              {selectedEvent.type === "scheduled" && selectedEvent.status === "pending" && (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    className="btn btn-sm"
-                    style={
-                      !isPlatformConnected(selectedEvent.platform)
-                        ? {
-                            background: "rgba(255, 255, 255, 0.08)",
-                            color: "var(--text-muted)",
-                            border: "1px solid var(--border-subtle)",
-                            cursor: "not-allowed",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            fontWeight: 600,
-                          }
-                        : {
-                            background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
-                            color: "#fff",
-                            border: "none",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            fontWeight: 600,
-                          }
-                    }
-                    onClick={() => handlePublishNow(selectedEvent)}
-                    disabled={publishingId === selectedEvent.rawId || !isPlatformConnected(selectedEvent.platform)}
-                    title={!isPlatformConnected(selectedEvent.platform) ? `Connect ${selectedEvent.platform.toUpperCase()} in Profile to publish` : ""}
+            {/* Modal Body: Events List */}
+            <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+              {selectedDateEvents.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "48px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 16,
+                      background: "var(--surface-secondary)",
+                      border: "1.5px dashed var(--border-strong)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--text-muted)",
+                    }}
                   >
-                    <BoltIcon style={{ width: 14, height: 14 }} />
-                    {publishingId === selectedEvent.rawId
-                      ? "Publishing..."
-                      : !isPlatformConnected(selectedEvent.platform)
-                      ? `Connect ${selectedEvent.platform.toUpperCase()} to Publish`
-                      : "Publish Now"}
-                  </button>
+                    <ClockIcon style={{ width: 28, height: 28 }} />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+                      No content on this day
+                    </h4>
+                    <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "4px 0 0", maxWidth: 360 }}>
+                      Maintain consistent audience reach by scheduling your next YouTube video or Instagram reel for this date.
+                    </p>
+                  </div>
                   <button
-                    className="btn btn-ghost btn-sm"
-                    style={{ color: "#f87171", border: "1px solid rgba(248, 113, 113, 0.3)" }}
-                    onClick={() => handleCancelPost(selectedEvent.rawId)}
-                    disabled={publishingId === selectedEvent.rawId}
+                    className="btn btn-primary btn-sm"
+                    onClick={() => openScheduleForDate(selectedDate)}
+                    style={{ marginTop: 8 }}
                   >
-                    <TrashIcon style={{ width: 14, height: 14 }} />
-                    Cancel
+                    <PlusIcon style={{ width: 14, height: 14, strokeWidth: 2.5 }} />
+                    Schedule a Post for {format(selectedDate, "MMM d")}
                   </button>
                 </div>
+              ) : (
+                selectedDateEvents.map((item) => {
+                  const isYouTube = item.platform === "youtube";
+                  const isInstagram = item.platform === "instagram";
+                  const isProject = item.type === "project";
+
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        padding: 16,
+                        borderRadius: "var(--radius-lg)",
+                        border: "1px solid var(--border)",
+                        background: "var(--surface)",
+                        boxShadow: "var(--shadow-subtle)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 12,
+                      }}
+                    >
+                      {/* Event Card Header */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {/* Platform Pill */}
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                              padding: "3px 8px",
+                              borderRadius: 6,
+                              background: isYouTube
+                                ? "rgba(255, 0, 51, 0.1)"
+                                : isInstagram
+                                ? "rgba(225, 48, 108, 0.1)"
+                                : "rgba(113, 82, 188, 0.1)",
+                              color: isYouTube
+                                ? "#FF0033"
+                                : isInstagram
+                                ? "#E1306C"
+                                : "var(--lilac-dark)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <PlatformIcon platform={item.platform} size={14} />
+                            <span>{isYouTube ? "YouTube" : isInstagram ? "Instagram" : "Video Project"}</span>
+                          </span>
+
+                          {/* Time */}
+                          <span style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+                            <ClockIcon style={{ width: 13, height: 13 }} />
+                            {item.start ? format(item.start, "p") : "All Day"}
+                          </span>
+                        </div>
+
+                        {/* Status Badge */}
+                        <span
+                          style={{
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            padding: "3px 9px",
+                            borderRadius: 99,
+                            background:
+                              item.status === "published"
+                                ? "var(--status-success-bg)"
+                                : item.status === "pending"
+                                ? "var(--status-warning-bg)"
+                                : item.status === "failed"
+                                ? "var(--status-error-bg)"
+                                : "var(--status-neutral-bg)",
+                            color:
+                              item.status === "published"
+                                ? "var(--status-success-fg)"
+                                : item.status === "pending"
+                                ? "var(--status-warning-fg)"
+                                : item.status === "failed"
+                                ? "var(--status-error-fg)"
+                                : "var(--status-neutral-fg)",
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {item.status === "pending" ? "⏳ Scheduled" : item.status === "published" ? "✓ Published" : item.status}
+                        </span>
+                      </div>
+
+                      {/* Event Media & Title */}
+                      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                        <div
+                          style={{
+                            width: 120,
+                            height: 68,
+                            borderRadius: 8,
+                            flexShrink: 0,
+                            overflow: "hidden",
+                            background: "var(--surface-secondary)",
+                            border: "1px solid var(--border)",
+                            position: "relative",
+                          }}
+                        >
+                          <EventThumbnail event={item} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h4
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 700,
+                              color: "var(--ink)",
+                              margin: "0 0 4px",
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {item.title}
+                          </h4>
+                          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+                            {isProject
+                              ? "Uploaded & analyzed in ReachAI studio"
+                              : `Target: ${item.platform?.toUpperCase()} Publishing`}
+                          </p>
+
+                          {/* Live Post link if published */}
+                          {item.youtubeVideoId && (
+                            <a
+                              href={`https://www.youtube.com/watch?v=${item.youtubeVideoId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "#FF0033",
+                                textDecoration: "none",
+                                marginTop: 6,
+                              }}
+                            >
+                              <span>Watch on YouTube</span>
+                              <ArrowTopRightOnSquareIcon style={{ width: 13, height: 13 }} />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Content / Caption Block */}
+                      {item.content && (
+                        <div
+                          style={{
+                            background: "var(--surface-secondary)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius-md)",
+                            padding: "10px 12px",
+                            position: "relative",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-secondary)" }}>
+                              Caption / Post Content
+                            </span>
+                            <button
+                              type="button"
+                              className={`copy-btn ${copiedId === item.id ? "copied" : ""}`}
+                              onClick={() => handleCopyCaption(item.id, item.content)}
+                              style={{ padding: "3px 8px", fontSize: 11 }}
+                            >
+                              {copiedId === item.id ? (
+                                <>
+                                  <CheckIcon style={{ width: 12, height: 12 }} />
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <DocumentDuplicateIcon style={{ width: 12, height: 12 }} />
+                                  Copy
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <p
+                            style={{
+                              fontSize: 12.5,
+                              color: "var(--ink-soft)",
+                              margin: 0,
+                              lineHeight: 1.5,
+                              maxHeight: 120,
+                              overflowY: "auto",
+                              whiteSpace: "pre-wrap",
+                            }}
+                          >
+                            {item.content}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                          gap: 10,
+                          paddingTop: 8,
+                          borderTop: "1px solid var(--border)",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {item.analysisId && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => navigate(`/app/analysis/${item.analysisId}`)}
+                            style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}
+                          >
+                            <SparklesIcon style={{ width: 14, height: 14, color: "var(--brand-coral)" }} />
+                            View AI Strategy
+                          </button>
+                        )}
+
+                        {isProject && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => openScheduleForDate(selectedDate, item.projectId)}
+                            style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}
+                          >
+                            <ClockIcon style={{ width: 14, height: 14 }} />
+                            Schedule This Video
+                          </button>
+                        )}
+
+                        {item.type === "scheduled" && item.status === "pending" && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              style={{
+                                background: "var(--brand-coral)",
+                                color: "#fff",
+                                border: "none",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                                fontSize: 12,
+                                fontWeight: 600,
+                              }}
+                              onClick={() => handlePublishNow(item)}
+                              disabled={publishingId === item.rawId || !isPlatformConnected(item.platform)}
+                              title={!isPlatformConnected(item.platform) ? `Connect ${item.platform.toUpperCase()} in Profile to publish` : ""}
+                            >
+                              <BoltIcon style={{ width: 14, height: 14 }} />
+                              {publishingId === item.rawId ? "Publishing..." : "Publish Now"}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              style={{ color: "var(--status-error-fg)", border: "1px solid rgba(183, 53, 41, 0.2)", fontSize: 12 }}
+                              onClick={() => handleCancelPost(item.rawId)}
+                              disabled={publishingId === item.rawId}
+                            >
+                              <TrashIcon style={{ width: 13, height: 13 }} />
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Schedule / Publish Modal */}
+      {/* ── SCHEDULE / PUBLISH MODAL ────────────────────────────────────── */}
       {showScheduleModal && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
+            background: "var(--overlay)",
             backdropFilter: "blur(6px)",
             display: "flex",
             alignItems: "center",
@@ -450,25 +1535,26 @@ export default function CalendarPage() {
           onClick={() => setShowScheduleModal(false)}
         >
           <div
-            className="glass-card animate-scaleIn"
+            className="card animate-scaleIn"
             style={{
               maxWidth: 540,
               width: "100%",
               padding: 28,
-              background: "rgba(22, 22, 45, 0.95)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 16,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-xl)",
+              boxShadow: "var(--shadow-modal)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 {modalMode === "now" ? (
-                  <BoltIcon style={{ width: 22, height: 22, color: "#ec4899" }} />
+                  <BoltIcon style={{ width: 22, height: 22, color: "var(--brand-coral)" }} />
                 ) : (
-                  <ClockIcon style={{ width: 22, height: 22, color: "var(--text-accent)" }} />
+                  <ClockIcon style={{ width: 22, height: 22, color: "var(--brand-coral)" }} />
                 )}
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
                   {modalMode === "now" ? "Publish Social Post Now" : "Schedule a Social Post"}
                 </h3>
               </div>
@@ -478,38 +1564,16 @@ export default function CalendarPage() {
             </div>
 
             {/* Mode Switcher Toggle */}
-            <div style={{
-              display: "flex",
-              background: "rgba(255, 255, 255, 0.05)",
-              padding: 4,
-              borderRadius: 10,
-              marginBottom: 18,
-              border: "1px solid var(--border-subtle)",
-            }}>
-              <button
-                type="button"
-                onClick={() => setModalMode("now")}
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  border: "none",
-                  transition: "all 0.2s ease",
-                  background: modalMode === "now" ? "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)" : "transparent",
-                  color: modalMode === "now" ? "#fff" : "var(--text-secondary)",
-                  boxShadow: modalMode === "now" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
-                }}
-              >
-                <BoltIcon style={{ width: 14, height: 14 }} />
-                Post Now
-              </button>
+            <div
+              style={{
+                display: "flex",
+                background: "var(--surface-secondary)",
+                padding: 4,
+                borderRadius: "var(--radius-md)",
+                marginBottom: 18,
+                border: "1px solid var(--border)",
+              }}
+            >
               <button
                 type="button"
                 onClick={() => setModalMode("schedule")}
@@ -520,18 +1584,43 @@ export default function CalendarPage() {
                   justifyContent: "center",
                   gap: 6,
                   padding: "8px 14px",
-                  borderRadius: 8,
+                  borderRadius: "var(--radius-sm)",
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
                   border: "none",
-                  transition: "all 0.2s ease",
-                  background: modalMode === "schedule" ? "var(--brand-500)" : "transparent",
+                  transition: "all 0.15s ease",
+                  background: modalMode === "schedule" ? "var(--brand-coral)" : "transparent",
                   color: modalMode === "schedule" ? "#fff" : "var(--text-secondary)",
+                  boxShadow: modalMode === "schedule" ? "0 1px 3px rgba(240, 90, 67, 0.25)" : "none",
                 }}
               >
                 <ClockIcon style={{ width: 14, height: 14 }} />
                 Schedule for Later
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalMode("now")}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  border: "none",
+                  transition: "all 0.15s ease",
+                  background: modalMode === "now" ? "var(--brand-coral)" : "transparent",
+                  color: modalMode === "now" ? "#fff" : "var(--text-secondary)",
+                  boxShadow: modalMode === "now" ? "0 1px 3px rgba(240, 90, 67, 0.25)" : "none",
+                }}
+              >
+                <BoltIcon style={{ width: 14, height: 14 }} />
+                Publish Immediately
               </button>
             </div>
 
@@ -577,9 +1666,9 @@ export default function CalendarPage() {
                           fontWeight: 600,
                           fontSize: 13,
                           cursor: "pointer",
-                          background: isSelected ? `${PLATFORM_COLORS[p]}25` : "rgba(255,255,255,0.03)",
-                          border: `1px solid ${isSelected ? PLATFORM_COLORS[p] : "rgba(255,255,255,0.08)"}`,
-                          color: isSelected ? PLATFORM_COLORS[p] : "var(--text-secondary)",
+                          background: isSelected ? `${PLATFORM_COLORS[p]}15` : "var(--surface-secondary)",
+                          border: `1.5px solid ${isSelected ? PLATFORM_COLORS[p] : "var(--border)"}`,
+                          color: isSelected ? PLATFORM_COLORS[p] : "var(--ink-soft)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -587,14 +1676,17 @@ export default function CalendarPage() {
                           flexWrap: "wrap",
                         }}
                       >
-                        <span>{p.charAt(0).toUpperCase() + p.slice(1)}</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <PlatformIcon platform={p} size={16} />
+                          <span>{p === "youtube" ? "YouTube" : "Instagram"}</span>
+                        </span>
                         <span
                           style={{
                             fontSize: 10,
                             padding: "2px 6px",
                             borderRadius: 4,
-                            background: connected ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                            color: connected ? "#4ade80" : "#f87171",
+                            background: connected ? "var(--status-success-bg)" : "var(--status-error-bg)",
+                            color: connected ? "var(--status-success-fg)" : "var(--status-error-fg)",
                             fontWeight: 700,
                           }}
                         >
@@ -612,8 +1704,8 @@ export default function CalendarPage() {
                   style={{
                     padding: "12px 14px",
                     borderRadius: 8,
-                    background: "rgba(239, 68, 68, 0.08)",
-                    border: "1px solid rgba(239, 68, 68, 0.25)",
+                    background: "var(--status-error-bg)",
+                    border: "1px solid rgba(183, 53, 41, 0.2)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -621,8 +1713,8 @@ export default function CalendarPage() {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <InformationCircleIcon style={{ width: 18, height: 18, color: "#f87171", flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, color: "#f87171" }}>
+                    <InformationCircleIcon style={{ width: 18, height: 18, color: "var(--status-error-fg)", flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: "var(--status-error-fg)" }}>
                       Your <strong>{formState.platform.toUpperCase()}</strong> account is not connected.
                     </span>
                   </div>
@@ -633,24 +1725,6 @@ export default function CalendarPage() {
                   >
                     Connect in Profile
                   </Link>
-                </div>
-              )}
-
-              {/* Informational Callout if Post Now */}
-              {modalMode === "now" && isPlatformConnected(formState.platform) && (
-                <div style={{
-                  padding: "10px 14px",
-                  borderRadius: 8,
-                  background: "rgba(236, 72, 153, 0.08)",
-                  border: "1px solid rgba(236, 72, 153, 0.25)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}>
-                  <BoltIcon style={{ width: 18, height: 18, color: "#ec4899", flexShrink: 0 }} />
-                  <p style={{ fontSize: 12, color: "var(--text-primary)", margin: 0, lineHeight: 1.5 }}>
-                    Instant publication: Video will be published immediately to your connected <strong>{formState.platform.toUpperCase()}</strong> account.
-                  </p>
                 </div>
               )}
 
@@ -690,44 +1764,16 @@ export default function CalendarPage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-sm"
+                  className="btn btn-primary btn-sm"
                   disabled={formSubmitting || !isPlatformConnected(formState.platform)}
                   title={!isPlatformConnected(formState.platform) ? `Connect ${formState.platform.toUpperCase()} account first` : ""}
-                  style={
-                    !isPlatformConnected(formState.platform)
-                      ? {
-                          background: "rgba(255, 255, 255, 0.08)",
-                          color: "var(--text-muted)",
-                          border: "1px solid var(--border-subtle)",
-                          cursor: "not-allowed",
-                        }
-                      : modalMode === "now"
-                      ? {
-                          background: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
-                          color: "#fff",
-                          border: "none",
-                          fontWeight: 600,
-                          boxShadow: "0 4px 14px rgba(236, 72, 153, 0.35)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }
-                      : {
-                          background: "var(--brand-500)",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }
-                  }
+                  style={{ display: "flex", alignItems: "center", gap: 6 }}
                 >
                   {formSubmitting ? (
                     <>
                       <ArrowPathIcon style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
                       {modalMode === "now" ? `Publishing to ${formState.platform.toUpperCase()}...` : "Scheduling..."}
                     </>
-                  ) : !isPlatformConnected(formState.platform) ? (
-                    `Connect ${formState.platform.toUpperCase()} to Publish`
                   ) : modalMode === "now" ? (
                     <>
                       <BoltIcon style={{ width: 14, height: 14 }} />

@@ -6,6 +6,7 @@ import {
   getScheduledPosts,
   cancelScheduledPost,
   verifyPostStatus,
+  verifyAllPosts,
 } from "../controllers/schedule.controller.js";
 
 const router = Router();
@@ -13,6 +14,7 @@ const router = Router();
 router.use(authenticate);
 
 router.post("/now", publishNowPost);
+router.post("/verify-all", verifyAllPosts);
 router.post("/:id/verify", verifyPostStatus);
 router.post("/", schedulePost);
 router.get("/", getScheduledPosts);

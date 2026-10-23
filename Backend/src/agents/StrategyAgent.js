@@ -64,13 +64,13 @@ Return a JSON object with EXACTLY this structure:
   ],
   "crossPromotionStrategy": "How to funnel Instagram Reels viewers to the full YouTube video and vice-versa",
   "scorecard": {
-    "platformFit": 88,
-    "seoScore": ${seo.seoScore || 75},
-    "engagementPotential": 82,
-    "professionalism": 85,
-    "readability": 90,
-    "viralityPotential": 70,
-    "overallReadiness": 84
+    "platformFit": [integer 0-100: how well this video matches the #1 ranked platform],
+    "seoScore": ${seo.seoScore || "[integer 0-100: search visibility potential]"},
+    "engagementPotential": [integer 0-100: hook strength and viewer retention potential],
+    "professionalism": [integer 0-100: production quality and presentation],
+    "readability": [integer 0-100: clarity and flow of the script/captions],
+    "viralityPotential": [integer 0-100: likelihood of algorithmic boost and sharing],
+    "overallReadiness": [integer 0-100: comprehensive weighted score across all metrics]
   },
   "scorecardExplanations": {
     "platformFit": "Why this score",
@@ -92,6 +92,34 @@ Return a JSON object with EXACTLY this structure:
 
 Return ONLY valid JSON, no commentary outside the JSON object.
 `;
+  }
+
+  processResult(raw) {
+    if (raw?.scorecard) {
+      const sc = raw.scorecard;
+      // Convert any string values to integers
+      for (const k of Object.keys(sc)) {
+        if (typeof sc[k] === "string") {
+          sc[k] = parseInt(sc[k].replace(/\D/g, ""), 10) || 75;
+        }
+      }
+      // Compute weighted overall readiness if missing or defaulted to 84
+      const pFit = Number(sc.platformFit) || 80;
+      const sScore = Number(sc.seoScore) || 75;
+      const eng = Number(sc.engagementPotential) || 75;
+      const prof = Number(sc.professionalism) || 80;
+      const read = Number(sc.readability) || 80;
+      const vir = Number(sc.viralityPotential) || 65;
+
+      const calculatedOverall = Math.round(
+        pFit * 0.25 + eng * 0.25 + sScore * 0.15 + vir * 0.15 + prof * 0.10 + read * 0.10
+      );
+
+      if (!sc.overallReadiness || sc.overallReadiness === 84) {
+        sc.overallReadiness = calculatedOverall;
+      }
+    }
+    return raw;
   }
 }
 
